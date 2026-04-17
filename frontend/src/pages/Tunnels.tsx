@@ -62,6 +62,12 @@ export function TunnelsPage() {
                 <div className="meta-grid">
                   <span className="k">public</span>
                   <span className="v">{remote}</span>
+                  {t.container ? (
+                    <>
+                      <span className="k">container</span>
+                      <span className="v">{t.container}</span>
+                    </>
+                  ) : null}
                   <span className="k">restarts</span>
                   <span className="v">{t.restart_count}</span>
                   <span className="k">started</span>

@@ -22,6 +22,7 @@ export type AppConfig = {
 export type TunnelInfo = {
   local_port: number;
   server: string;
+  container?: string;
   desired: boolean;
   running: boolean;
   remote_host: string | null;

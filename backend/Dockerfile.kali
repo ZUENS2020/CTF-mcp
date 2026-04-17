@@ -35,7 +35,9 @@ RUN set -eux; \
             echo "apt update failed on all mirrors"; \
             exit 1; \
         fi; \
-        packages='kali-linux-headless python3-pip python3-venv metasploit-framework chisel'; \
+        packages='kali-linux-headless python3-pip python3-venv metasploit-framework chisel \
+            build-essential gcc g++ gdb gdb-multiarch ltrace strace file binutils \
+            patchelf elfutils ruby-full'; \
         if ! DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends $packages; then \
             echo "apt install failed, refreshing index and retrying"; \
             apt-get update -o APT::Update::Error-Mode=any; \
@@ -43,7 +45,20 @@ RUN set -eux; \
         fi; \
         rm -rf /var/lib/apt/lists/*
 
-RUN pip3 install --break-system-packages --upgrade pip pwntools
+RUN pip3 install --break-system-packages --upgrade pip pwntools ropper capstone unicorn keystone-engine
+
+# GEF — 单文件版 GDB 插件,失败不 fatal(离线/代理环境也能继续构建)
+RUN set -eux; \
+    for url in \
+        "https://gef.blah.cat/py" \
+        "https://ghfast.top/https://raw.githubusercontent.com/hugsy/gef/main/gef.py" \
+        "https://raw.githubusercontent.com/hugsy/gef/main/gef.py"; do \
+        if curl -fsSL --connect-timeout 15 --max-time 120 "$url" -o /opt/gef.py; then \
+            echo "source /opt/gef.py" > /root/.gdbinit; \
+            break; \
+        fi; \
+    done; \
+    [ -f /opt/gef.py ] || echo "gef install skipped (network)"
 
 # ---- bore binary (for reverse shell tunnels started inside the container) ----
 RUN set -eux; \
