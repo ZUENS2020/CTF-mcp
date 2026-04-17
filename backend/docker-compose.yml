@@ -15,7 +15,7 @@ services:
       - "8000:8000"
     environment:
       - CTF_APP_ENV=dev
-      - CTF_DOCKER_BASE_IMAGE=ctf-kali:latest
+      - CTF_DOCKER_BASE_IMAGE=${CTF_DOCKER_BASE_IMAGE:-ctf-kali:latest}
       - CTF_WORKSPACE_DIR=/tmp/workspace
       - CTF_COMMAND_TIMEOUT_SECONDS=30
       - CTF_BORE_BINARY=bore
