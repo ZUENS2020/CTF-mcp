@@ -1,19 +1,26 @@
 FROM kalilinux/kali-rolling:latest
 
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
-    python3 python3-pip python3-venv python3-dev python3-setuptools python3-wheel \
-    python3-impacket python3-pwntools python3-scapy python3-z3 \
-    build-essential cmake pkg-config gcc g++ make \
-    gdb gdbserver strace ltrace checksec patchelf ropper rizin radare2 ghidra \
-    nmap sqlmap netcat-traditional socat tcpdump tshark tcpflow \
-    ffuf wfuzz gobuster feroxbuster nikto whatweb dirb dirbuster \
-    hashcat john hydra medusa fcrackzip \
-    binwalk foremost exiftool steghide yara sleuthkit volatility3 \
-    aircrack-ng apktool chisel metasploit-framework \
-    impacket-scripts seclists wordlists \
-    curl wget git unzip zip p7zip-full rlwrap tmux vim file jq \
-    ruby ruby-dev golang-go openjdk-21-jdk \
-    && rm -rf /var/lib/apt/lists/*
+ARG KALI_MIRROR=http://http.kali.org/kali
+ARG APT_RETRIES=8
+ARG APT_TIMEOUT=30
+ARG HTTP_PROXY=
+ARG HTTPS_PROXY=
+ARG NO_PROXY=
+
+ENV HTTP_PROXY=${HTTP_PROXY}
+ENV HTTPS_PROXY=${HTTPS_PROXY}
+ENV NO_PROXY=${NO_PROXY}
+
+RUN set -eux; \
+        printf 'deb %s kali-rolling main contrib non-free non-free-firmware\n' "${KALI_MIRROR%/}" > /etc/apt/sources.list; \
+        printf 'Acquire::Retries "%s";\nAcquire::http::Timeout "%s";\nAcquire::https::Timeout "%s";\nAcquire::ForceIPv4 "true";\n' "$APT_RETRIES" "$APT_TIMEOUT" "$APT_TIMEOUT" > /etc/apt/apt.conf.d/99ctf-network; \
+        packages='python3 python3-pip python3-venv python3-dev python3-setuptools python3-wheel python3-impacket python3-pwntools python3-scapy python3-z3 build-essential cmake pkg-config gcc g++ make gdb gdbserver strace ltrace checksec patchelf ropper rizin radare2 ghidra nmap sqlmap netcat-traditional socat tcpdump tshark tcpflow ffuf wfuzz gobuster feroxbuster nikto whatweb dirb dirbuster hashcat john hydra medusa fcrackzip binwalk foremost exiftool steghide yara sleuthkit aircrack-ng apktool chisel metasploit-framework impacket-scripts seclists wordlists curl wget git unzip zip p7zip-full rlwrap tmux vim file jq ruby ruby-dev golang-go openjdk-21-jdk'; \
+        apt-get update; \
+        if ! DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends $packages; then \
+            apt-get update; \
+            DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends $packages; \
+        fi; \
+        rm -rf /var/lib/apt/lists/*
 
 RUN pip3 install --break-system-packages --upgrade pip pwntools
 

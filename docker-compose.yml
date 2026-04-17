@@ -58,6 +58,13 @@ services:
       dockerfile: Dockerfile.kali
       provenance: false
       sbom: false
+      args:
+        KALI_MIRROR: ${KALI_MIRROR:-http://http.kali.org/kali}
+        APT_RETRIES: ${APT_RETRIES:-8}
+        APT_TIMEOUT: ${APT_TIMEOUT:-30}
+        HTTP_PROXY: ${HTTP_PROXY:-}
+        HTTPS_PROXY: ${HTTPS_PROXY:-}
+        NO_PROXY: ${NO_PROXY:-}
     image: ctf-kali:latest
     container_name: ctf-kali-base
     command: ["sleep", "infinity"]

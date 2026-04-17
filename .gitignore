@@ -13,3 +13,4 @@ backend/data/app.db
 # Virtualenv
 .venv/
 backend/.venv/
+build.log
