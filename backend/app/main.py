@@ -12,7 +12,13 @@ from app.mcp.server import mcp
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title=settings.app_name)
+    mcp_app = mcp.http_app()
+    app = FastAPI(title=settings.app_name, lifespan=mcp_app.lifespan)
+
+    # Create database tables during app construction. FastAPI startup hooks are
+    # replaced when a custom lifespan is provided.
+    init_db()
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
@@ -20,10 +26,6 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-
-    @app.on_event("startup")
-    def _startup() -> None:
-        init_db()
 
     @app.get("/healthz")
     def healthz() -> dict[str, str]:
@@ -36,7 +38,7 @@ def create_app() -> FastAPI:
     # Mount standard MCP Streamable HTTP transport at /mcp
     # FastMCP serves at /mcp internally; mounting at "/" keeps the endpoint at /mcp
     # while FastAPI explicit routes (/api/*, /healthz) retain priority.
-    app.mount("/", mcp.http_app())
+    app.mount("/", mcp_app)
 
     return app
 

@@ -95,6 +95,36 @@ class MCPClient:
         self._req_id += 1
         return self._req_id
 
+    @staticmethod
+    def _parse_sse_json(body: str) -> dict:
+        """Extract the first valid JSON payload from an SSE response body."""
+        payloads: list[str] = []
+        current_data: list[str] = []
+
+        for raw_line in body.splitlines():
+            line = raw_line.rstrip("\r")
+            if not line:
+                if current_data:
+                    payloads.append("\n".join(current_data).strip())
+                    current_data = []
+                continue
+            if line.startswith("data:"):
+                current_data.append(line[5:].lstrip())
+
+        if current_data:
+            payloads.append("\n".join(current_data).strip())
+
+        for payload in payloads:
+            if not payload:
+                continue
+            try:
+                return json.loads(payload)
+            except json.JSONDecodeError:
+                continue
+
+        preview = payloads[0] if payloads else "<no-data-lines>"
+        raise StepError(f"MCP SSE response contains no JSON payload: {preview}")
+
     def _post(self, payload: dict) -> dict:
         data = json.dumps(payload).encode()
         headers: dict[str, str] = {
@@ -113,13 +143,9 @@ class MCPClient:
                 body = resp.read().decode()
                 if not body.strip():
                     return {}
-                # Handle SSE envelope: "data: {...}\n\n"
-                if body.lstrip().startswith("data:"):
-                    for line in body.splitlines():
-                        line = line.strip()
-                        if line.startswith("data:"):
-                            body = line[5:].strip()
-                            break
+                content_type = (resp.headers.get("Content-Type") or "").lower()
+                if "text/event-stream" in content_type or "data:" in body or "event:" in body:
+                    return self._parse_sse_json(body)
                 return json.loads(body)
         except urllib.error.HTTPError as exc:
             detail = exc.read().decode(errors="replace")
@@ -179,87 +205,93 @@ class MCPClient:
 
 def run(ctx: Context) -> None:
     log(f"base={ctx.base_url} container={ctx.container_name}")
+    container_created = False
 
-    # 1. Health check
-    log("1/11 health check")
-    health = http_json(ctx, "GET", "/healthz")
-    ensure(isinstance(health, dict) and health.get("status") == "ok", "healthz unexpected payload")
-
-    # 2. Create container
-    log("2/11 create container")
-    http_json(ctx, "POST", "/api/containers", {"name": ctx.container_name, "image": ctx.image})
-
-    # 3. Activate container
-    log("3/11 activate container")
-    active = http_json(ctx, "PUT", f"/api/containers/{urllib.parse.quote(ctx.container_name)}/activate")
-    ensure(isinstance(active, dict) and active.get("name") == ctx.container_name, "activate response mismatch")
-
-    # Initialise MCP session
-    mcp = MCPClient(ctx.base_url)
-    mcp.initialize()
-
-    # Verify tools are registered
-    tools = mcp.list_tools()
-    tool_names = {t["name"] for t in tools}
-    for expected in ("shell_exec", "upload_file", "read_file", "start_bore", "stop_bore",
-                     "list_bore_tunnels", "get_callbacks"):
-        ensure(expected in tool_names, f"MCP tool '{expected}' not found in tools/list")
-
-    # 4. shell_exec
-    log("4/11 MCP shell_exec")
-    shell_res = mcp.call_tool("shell_exec", {"cmd": "echo phase06_ok"})
-    ensure("phase06_ok" in shell_res.get("output", ""), "shell_exec output missing marker")
-
-    # 5. upload_file / read_file
-    log("5/11 MCP upload_file / read_file")
-    mcp.call_tool("shell_exec", {"cmd": "mkdir -p /tmp/workspace"})
-    sample = f"phase06-file-check @ {datetime.now(timezone.utc).isoformat()}"
-    mcp.call_tool("upload_file", {"name": "phase06.txt", "b64": base64.b64encode(sample.encode()).decode()})
-    read_res = mcp.call_tool("read_file", {"path": "phase06.txt"})
-    ensure(read_res.get("content", "").strip() == sample, "read_file content mismatch")
-
-    # 6. Post callback via REST
-    log("6/11 post callback")
-    marker = f"phase06-callback-{int(time.time())}"
-    http_text(ctx, "POST", f"/callback/{ctx.callback_token}", marker)
-
-    # 7. get_callbacks via MCP
-    log("7/11 MCP get_callbacks")
-    cb_res = mcp.call_tool("get_callbacks", {"limit": 100})
-    found = any(
-        r.get("token") == ctx.callback_token and marker in r.get("body", "")
-        for r in cb_res.get("items", [])
-    )
-    ensure(found, "get_callbacks did not return posted callback")
-
-    # 8. list_bore_tunnels
-    log("8/11 MCP list_bore_tunnels")
-    tunnels = mcp.call_tool("list_bore_tunnels", {})
-    ensure("tunnels" in tunnels, "list_bore_tunnels response invalid")
-
-    # 9. start_bore
-    log("9/11 MCP start_bore")
-    bore_error: str | None = None
     try:
-        started = mcp.call_tool("start_bore", {"local_port": ctx.bore_port})
-        ensure("local_port" in started, "start_bore response missing local_port")
-    except StepError as exc:
-        bore_error = str(exc)
-        if ctx.require_bore:
-            raise
+        # 1. Health check
+        log("1/11 health check")
+        health = http_json(ctx, "GET", "/healthz")
+        ensure(isinstance(health, dict) and health.get("status") == "ok", "healthz unexpected payload")
 
-    if bore_error:
-        log(f"WARN bore start skipped: {bore_error}")
-    else:
-        # 10. stop_bore
-        log("10/11 MCP stop_bore")
-        time.sleep(1)
-        mcp.call_tool("stop_bore", {"local_port": ctx.bore_port})
+        # 2. Create container
+        log("2/11 create container")
+        http_json(ctx, "POST", "/api/containers", {"name": ctx.container_name, "image": ctx.image})
+        container_created = True
 
-    # 11. Teardown
-    log("11/11 teardown")
-    if not ctx.keep_container:
-        http_json(ctx, "DELETE", f"/api/containers/{urllib.parse.quote(ctx.container_name)}")
+        # 3. Activate container
+        log("3/11 activate container")
+        active = http_json(ctx, "PUT", f"/api/containers/{urllib.parse.quote(ctx.container_name)}/activate")
+        ensure(isinstance(active, dict) and active.get("name") == ctx.container_name, "activate response mismatch")
+
+        # Initialise MCP session
+        mcp = MCPClient(ctx.base_url)
+        mcp.initialize()
+
+        # Verify tools are registered
+        tools = mcp.list_tools()
+        tool_names = {t["name"] for t in tools}
+        for expected in ("shell_exec", "upload_file", "read_file", "start_bore", "stop_bore",
+                         "list_bore_tunnels", "get_callbacks"):
+            ensure(expected in tool_names, f"MCP tool '{expected}' not found in tools/list")
+
+        # 4. shell_exec
+        log("4/11 MCP shell_exec")
+        shell_res = mcp.call_tool("shell_exec", {"cmd": "echo phase06_ok"})
+        ensure("phase06_ok" in shell_res.get("output", ""), "shell_exec output missing marker")
+
+        # 5. upload_file / read_file
+        log("5/11 MCP upload_file / read_file")
+        mcp.call_tool("shell_exec", {"cmd": "mkdir -p /tmp/workspace"})
+        sample = f"phase06-file-check @ {datetime.now(timezone.utc).isoformat()}"
+        mcp.call_tool("upload_file", {"name": "phase06.txt", "b64": base64.b64encode(sample.encode()).decode()})
+        read_res = mcp.call_tool("read_file", {"path": "phase06.txt"})
+        ensure(read_res.get("content", "").strip() == sample, "read_file content mismatch")
+
+        # 6. Post callback via REST
+        log("6/11 post callback")
+        marker = f"phase06-callback-{int(time.time())}"
+        http_text(ctx, "POST", f"/callback/{ctx.callback_token}", marker)
+
+        # 7. get_callbacks via MCP
+        log("7/11 MCP get_callbacks")
+        cb_res = mcp.call_tool("get_callbacks", {"limit": 100})
+        found = any(
+            r.get("token") == ctx.callback_token and marker in r.get("body", "")
+            for r in cb_res.get("items", [])
+        )
+        ensure(found, "get_callbacks did not return posted callback")
+
+        # 8. list_bore_tunnels
+        log("8/11 MCP list_bore_tunnels")
+        tunnels = mcp.call_tool("list_bore_tunnels", {})
+        ensure("tunnels" in tunnels, "list_bore_tunnels response invalid")
+
+        # 9. start_bore
+        log("9/11 MCP start_bore")
+        bore_error: str | None = None
+        try:
+            started = mcp.call_tool("start_bore", {"local_port": ctx.bore_port})
+            ensure("local_port" in started, "start_bore response missing local_port")
+        except StepError as exc:
+            bore_error = str(exc)
+            if ctx.require_bore:
+                raise
+
+        if bore_error:
+            log(f"WARN bore start skipped: {bore_error}")
+        else:
+            # 10. stop_bore
+            log("10/11 MCP stop_bore")
+            time.sleep(1)
+            mcp.call_tool("stop_bore", {"local_port": ctx.bore_port})
+    finally:
+        # 11. Teardown
+        log("11/11 teardown")
+        if container_created and not ctx.keep_container:
+            try:
+                http_json(ctx, "DELETE", f"/api/containers/{urllib.parse.quote(ctx.container_name)}")
+            except StepError as exc:
+                log(f"WARN teardown failed: {exc}")
 
 
 # ---------------------------------------------------------------------------
