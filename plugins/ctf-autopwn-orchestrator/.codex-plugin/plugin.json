@@ -1,0 +1,39 @@
+{
+  "name": "ctf-autopwn-orchestrator",
+  "version": "0.1.0",
+  "description": "Orchestrate CTF solving across local shell tools and a remote Kali API backend.",
+  "author": {
+    "name": "ZUENS2020",
+    "email": "support@example.com",
+    "url": "https://github.com/ZUENS2020"
+  },
+  "homepage": "https://github.com/ZUENS2020/CTF-mcp",
+  "repository": "https://github.com/ZUENS2020/CTF-mcp",
+  "license": "MIT",
+  "keywords": [
+    "ctf",
+    "kali",
+    "tmpfiles",
+    "bore",
+    "orchestration"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "CTF Orchestrator",
+    "shortDescription": "Coordinate local tmpfiles/bore with remote Kali API",
+    "longDescription": "Use local command-line tmpfiles and bore for transfer/tunneling, then execute full CTF workflows in remote Kali containers through pure HTTP APIs.",
+    "developerName": "ZUENS2020",
+    "category": "Coding",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/ZUENS2020/CTF-mcp",
+    "privacyPolicyURL": "https://github.com/ZUENS2020/CTF-mcp",
+    "termsOfServiceURL": "https://github.com/ZUENS2020/CTF-mcp",
+    "defaultPrompt": [
+      "Use local tmpfiles and bore commands, then solve the challenge inside remote Kali via API"
+    ],
+    "brandColor": "#0F766E"
+  }
+}

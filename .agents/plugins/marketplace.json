@@ -1,0 +1,20 @@
+{
+  "name": "ctf-local-marketplace",
+  "interface": {
+    "displayName": "CTF Local Plugins"
+  },
+  "plugins": [
+    {
+      "name": "ctf-autopwn-orchestrator",
+      "source": {
+        "source": "local",
+        "path": "./plugins/ctf-autopwn-orchestrator"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}
