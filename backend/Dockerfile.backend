@@ -1,18 +1,43 @@
-FROM rust:1.87-slim AS bore-builder
-
-RUN cargo install --locked bore-cli
-
 FROM python:3.12-slim
+
+ARG TARGETARCH
+ARG BORE_DOWNLOAD_URL=
+ARG HTTP_PROXY=
+ARG HTTPS_PROXY=
+ARG NO_PROXY=
+
+ENV HTTP_PROXY=${HTTP_PROXY}
+ENV HTTPS_PROXY=${HTTPS_PROXY}
+ENV NO_PROXY=${NO_PROXY}
 
 WORKDIR /app
 
-COPY --from=bore-builder /usr/local/cargo/bin/bore /usr/local/bin/bore
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN set -eux; \
+    if [ -n "${BORE_DOWNLOAD_URL}" ]; then \
+      url="${BORE_DOWNLOAD_URL}"; \
+    else \
+      case "${TARGETARCH}" in \
+        amd64) url="https://github.com/ekzhang/bore/releases/latest/download/bore-x86_64-unknown-linux-musl.tar.gz" ;; \
+        arm64) url="https://github.com/ekzhang/bore/releases/latest/download/bore-aarch64-unknown-linux-musl.tar.gz" ;; \
+        *) echo "unsupported TARGETARCH=${TARGETARCH}"; exit 1 ;; \
+      esac; \
+    fi; \
+    curl -fsSL "$url" -o /tmp/bore.tar.gz; \
+    tar -xzf /tmp/bore.tar.gz -C /usr/local/bin bore; \
+    chmod +x /usr/local/bin/bore; \
+    bore --help >/dev/null; \
+    rm -f /tmp/bore.tar.gz
 
 COPY requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
 COPY app /app/app
 
-RUN mkdir -p /app/data && bore --help >/dev/null
+RUN mkdir -p /app/data
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

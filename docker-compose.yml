@@ -3,6 +3,11 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile.backend
+      args:
+        BORE_DOWNLOAD_URL: ${BORE_DOWNLOAD_URL:-}
+        HTTP_PROXY: ${HTTP_PROXY:-}
+        HTTPS_PROXY: ${HTTPS_PROXY:-}
+        NO_PROXY: ${NO_PROXY:-}
     container_name: ctf-backend
     ports:
       - "8000:8000"
@@ -31,6 +36,11 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmmirror.com}
+        HTTP_PROXY: ${HTTP_PROXY:-}
+        HTTPS_PROXY: ${HTTPS_PROXY:-}
+        NO_PROXY: ${NO_PROXY:-}
     container_name: ctf-frontend
     ports:
       - "5173:80"

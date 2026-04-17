@@ -13,6 +13,19 @@ cd /Users/zuens2020/Documents/CTF-mcp
 docker compose up -d --build
 ```
 
+网络受限时（例如 npm/crates 访问不稳定），先设置构建参数再启动：
+
+```bash
+cd /Users/zuens2020/Documents/CTF-mcp
+export NPM_REGISTRY=https://registry.npmmirror.com
+# 可选：自定义 bore 二进制下载地址
+# export BORE_DOWNLOAD_URL=https://<your-mirror>/bore-x86_64-unknown-linux-musl.tar.gz
+# 可选：代理
+# export HTTP_PROXY=http://127.0.0.1:7890
+# export HTTPS_PROXY=http://127.0.0.1:7890
+docker compose up -d --build
+```
+
 访问地址：
 
 - 前端: [http://localhost:5173](http://localhost:5173)
