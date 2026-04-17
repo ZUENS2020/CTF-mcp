@@ -32,6 +32,8 @@ class AppSettings(BaseSettings):
     command_timeout_seconds: int = 30
     docker_api_timeout_seconds: int = 15
     docker_operation_timeout_seconds: int = 20
+    tmpfiles_api_base: str = "https://tmpfiles.org"
+    tmpfiles_http_timeout_seconds: int = 30
     bore_binary: str = "bore"
     bore_server: str = "bore.pub"
     bore_restart_backoff_seconds: int = 2

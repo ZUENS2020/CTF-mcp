@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import base64
 import posixpath
 from typing import Any, Dict
 
@@ -15,7 +14,6 @@ from app.core.security import validate_command
 __all__ = [
     "ToolError",
     "shell_exec",
-    "upload_file",
     "read_file",
 ]
 
@@ -59,18 +57,6 @@ async def shell_exec(cmd: str, timeout: int | None = None) -> Dict[str, Any]:
         timeout_seconds=operation_timeout,
     )
     return {"exit_code": result.exit_code, "output": result.output, "container": active}
-
-
-async def upload_file(name: str, b64: str) -> Dict[str, Any]:
-    """Upload a file to /tmp/workspace/ in the active container. name is the filename; b64 is base64-encoded content."""
-    active = _active_container()
-    target = _safe_workspace_path(name)
-    try:
-        content = base64.b64decode(b64)
-    except Exception as exc:
-        raise ToolError("invalid base64 payload") from exc
-    await _run_docker_call(get_docker_service().write_file, active, target, content)
-    return {"message": "uploaded", "path": target, "container": active}
 
 
 async def read_file(path: str) -> Dict[str, Any]:

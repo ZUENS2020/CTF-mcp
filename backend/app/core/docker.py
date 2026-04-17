@@ -79,7 +79,7 @@ class DockerService:
         if not container.put_archive(parent_dir, tar_buffer.read()):
             raise APIError("failed to upload archive")
 
-    def read_file(self, name: str, path: str) -> str:
+    def read_file_bytes(self, name: str, path: str) -> bytes:
         container = self.client.containers.get(name)
         stream, _ = container.get_archive(path)
         data = b"".join(stream)
@@ -88,11 +88,14 @@ class DockerService:
         with tarfile.open(fileobj=tar_buffer, mode="r") as tar:
             members = tar.getmembers()
             if not members:
-                return ""
+                return b""
             extracted = tar.extractfile(members[0])
             if extracted is None:
-                return ""
-            return extracted.read().decode("utf-8", errors="replace")
+                return b""
+            return extracted.read()
+
+    def read_file(self, name: str, path: str) -> str:
+        return self.read_file_bytes(name, path).decode("utf-8", errors="replace")
 
 
 _docker_service: Optional[DockerService] = None

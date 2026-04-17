@@ -55,7 +55,7 @@ class BoreManager:
     """
     管理运行在 Kali 容器内的 bore 进程。
 
-    每条隧道在对应容器里起一个 `bore local <port> --to <server>` 后台进程,
+    每条隧道在对应容器里起一个 `bore local --to <server> <port>` 后台进程,
     pid 写到 /tmp/ctf_bore_<port>.pid,stdout/stderr 写到 /tmp/ctf_bore_<port>.log。
     后端用单独的监控线程定期 tail 日志、检查 pid 存活,保持 desired 语义。
     """
@@ -120,7 +120,7 @@ class BoreManager:
         # 清掉老 log,新进程从头开始写,方便监控线程定位 remote_port
         bore_cmd = (
             f"{shlex.quote(settings.bore_binary)} local "
-            f"{state.local_port} --to {shlex.quote(state.server)}"
+            f"--to {shlex.quote(state.server)} {state.local_port}"
         )
         shell = (
             f": > {shlex.quote(log_path)}; "
@@ -153,6 +153,8 @@ class BoreManager:
 
     def _kill_in_container(self, container_name: str, local_port: int) -> None:
         pid_path = PID_FILE.format(port=local_port)
+        pattern_new = rf"bore local --to [^ ]+ {local_port}\b"
+        pattern_old = rf"bore local {local_port} --to\b"
         shell = (
             f"if [ -f {shlex.quote(pid_path)} ]; then "
             f"  pid=$(cat {shlex.quote(pid_path)}); "
@@ -161,8 +163,9 @@ class BoreManager:
             f"  kill -KILL $pid 2>/dev/null; "
             f"  rm -f {shlex.quote(pid_path)}; "
             f"fi; "
-            # 兜底:按命令行模式清理(例如 pid 文件丢了)
-            f"pkill -f {shlex.quote(f'bore local {local_port} ')} 2>/dev/null || true"
+            # 兜底:按命令行模式清理(例如 pid 文件丢了),兼容新旧参数顺序
+            f"pkill -f {shlex.quote(pattern_new)} 2>/dev/null || true; "
+            f"pkill -f {shlex.quote(pattern_old)} 2>/dev/null || true"
         )
         try:
             container_obj = self._get_container(container_name)

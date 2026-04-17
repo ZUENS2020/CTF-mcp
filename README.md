@@ -66,3 +66,17 @@ python3 backend/scripts/e2e_phase06.py
 ```bash
 python3 backend/scripts/e2e_phase06.py --require-bore
 ```
+
+## tmpfiles 上传命令
+
+统一使用本机命令进行传输：
+
+```bash
+curl -F "file=@/Users/myuser/test.jpg" https://tmpfiles.org/api/v1/upload
+```
+
+
+## Skill
+
+- Local-tools CTF skill: `/Users/zuens2020/Documents/CTF-mcp/ctf-autopwn/SKILL.md`
+- 触发建议：在会话里写 `使用 ctf-autopwn-local-tools skill`。
