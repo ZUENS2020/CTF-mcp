@@ -1,7 +1,7 @@
 services:
   backend:
     build:
-      context: .
+      context: ./backend
       dockerfile: Dockerfile.backend
     container_name: ctf-backend
     ports:
@@ -16,7 +16,7 @@ services:
       - CTF_BORE_RESTART_BACKOFF_SECONDS=2
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ./data:/app/data
+      - ./backend/data:/app/data
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=5)"]
       interval: 15s
@@ -29,7 +29,7 @@ services:
 
   frontend:
     build:
-      context: ../frontend
+      context: ./frontend
       dockerfile: Dockerfile
     container_name: ctf-frontend
     ports:
@@ -40,7 +40,7 @@ services:
 
   kali-base:
     build:
-      context: .
+      context: ./backend
       dockerfile: Dockerfile.kali
     image: ctf-kali:latest
     container_name: ctf-kali-base

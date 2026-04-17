@@ -1,1 +1,15 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Node
+node_modules/
+frontend/dist/
+
+# Local runtime data
+backend/data/
 backend/data/app.db
+
+# Virtualenv
+.venv/
+backend/.venv/
