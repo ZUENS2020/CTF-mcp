@@ -1,0 +1,19 @@
+services:
+  ctf-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    ports:
+      - "8000:8000"
+    environment:
+      - CTF_APP_ENV=dev
+      - CTF_DOCKER_BASE_IMAGE=kalilinux/kali-rolling:latest
+      - CTF_WORKSPACE_DIR=/tmp/workspace
+      - CTF_COMMAND_TIMEOUT_SECONDS=30
+      - CTF_BORE_BINARY=bore
+      - CTF_BORE_SERVER=bore.pub
+      - CTF_BORE_RESTART_BACKOFF_SECONDS=2
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./data:/app/data
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000

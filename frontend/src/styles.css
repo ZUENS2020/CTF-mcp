@@ -1,0 +1,143 @@
+:root {
+  font-family: "JetBrains Mono", "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  color: #d7e0ea;
+  background: radial-gradient(circle at 15% 20%, #1d2732 0%, #0f141a 55%, #090c11 100%);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  min-height: 100vh;
+}
+
+.sidebar {
+  border-right: 1px solid #243341;
+  padding: 20px;
+  background: rgba(4, 10, 15, 0.65);
+}
+
+.sidebar h1 {
+  margin: 0 0 20px;
+  font-size: 20px;
+  letter-spacing: 0.04em;
+}
+
+.nav-link {
+  display: block;
+  padding: 10px 12px;
+  color: #c3ceda;
+  text-decoration: none;
+  border-radius: 8px;
+}
+
+.nav-link.active {
+  background: #1a8e78;
+  color: #081313;
+  font-weight: 700;
+}
+
+.content {
+  padding: 24px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.card {
+  background: rgba(10, 19, 27, 0.85);
+  border: 1px solid #273847;
+  border-radius: 10px;
+  padding: 14px;
+}
+
+.card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+label {
+  display: block;
+  margin-bottom: 8px;
+}
+
+input {
+  width: 100%;
+  margin-top: 4px;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid #3a5063;
+  background: #0e1923;
+  color: #dde7f2;
+}
+
+button {
+  border: 0;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-weight: 600;
+  cursor: pointer;
+  background: #2e9c83;
+  color: #081313;
+}
+
+button.danger {
+  background: #d16152;
+  color: #210805;
+}
+
+.badge {
+  display: inline-block;
+  border-radius: 20px;
+  padding: 2px 8px;
+  background: #3a4c59;
+  color: #e1e8f0;
+  font-size: 12px;
+}
+
+.badge-active {
+  background: #29c492;
+  color: #03271b;
+}
+
+pre {
+  margin: 8px 0 0;
+  max-height: 220px;
+  overflow: auto;
+  background: #060b11;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #243545;
+}
+
+.error {
+  color: #ff8f7e;
+}
+
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    border-right: 0;
+    border-bottom: 1px solid #243341;
+  }
+}
