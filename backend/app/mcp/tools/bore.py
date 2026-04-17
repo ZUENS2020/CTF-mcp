@@ -15,6 +15,7 @@ def _validate_port(local_port: int) -> None:
 
 
 def start_bore(local_port: int, server: str | None = None) -> Dict[str, Any]:
+    """Open a bore TCP tunnel from local_port to the public internet. Returns remote_host:remote_port for the public endpoint."""
     _validate_port(local_port)
     try:
         state = get_bore_manager().start_tunnel(local_port=local_port, server=server)
@@ -24,6 +25,7 @@ def start_bore(local_port: int, server: str | None = None) -> Dict[str, Any]:
 
 
 def stop_bore(local_port: int) -> Dict[str, Any]:
+    """Stop the bore tunnel for local_port."""
     _validate_port(local_port)
     try:
         state = get_bore_manager().stop_tunnel(local_port=local_port)
@@ -33,4 +35,5 @@ def stop_bore(local_port: int) -> Dict[str, Any]:
 
 
 def list_bore_tunnels() -> Dict[str, Any]:
+    """List all bore tunnels and their current status (running, remote address, restart count)."""
     return {"tunnels": get_bore_manager().list_tunnels()}

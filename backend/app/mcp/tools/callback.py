@@ -26,6 +26,7 @@ def _parse_since(since: Optional[str]) -> Optional[datetime]:
 
 
 def get_callbacks(since: str | None = None, limit: int = 100) -> Dict[str, Any]:
+    """Retrieve HTTP callbacks received at the CF Tunnel callback endpoint. since is an ISO datetime string; limit is max records."""
     if limit < 1 or limit > 1000:
         raise ToolError("limit must be between 1 and 1000")
     since_dt = _parse_since(since)
