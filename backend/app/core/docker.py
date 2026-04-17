@@ -20,7 +20,8 @@ class ExecResult:
 
 class DockerService:
     def __init__(self) -> None:
-        self.client = docker.from_env()
+        # Global client timeout prevents Docker API calls from hanging forever.
+        self.client = docker.from_env(timeout=settings.docker_api_timeout_seconds)
 
     def list_containers(self) -> List[Dict[str, Any]]:
         containers = self.client.containers.list(all=True)

@@ -30,6 +30,8 @@ class AppSettings(BaseSettings):
     container_platform: Optional[str] = "linux/amd64"
     workspace_dir: str = "/tmp/workspace"
     command_timeout_seconds: int = 30
+    docker_api_timeout_seconds: int = 15
+    docker_operation_timeout_seconds: int = 20
     bore_binary: str = "bore"
     bore_server: str = "bore.pub"
     bore_restart_backoff_seconds: int = 2

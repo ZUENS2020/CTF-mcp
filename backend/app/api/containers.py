@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import asyncio
 from typing import Dict
 
-from docker.errors import APIError, NotFound
+from docker.errors import APIError, DockerException, NotFound
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
@@ -17,28 +18,40 @@ class CreateContainerRequest(BaseModel):
     image: str | None = None
 
 
-@router.get("")
-def list_containers() -> list[dict]:
+async def _run_docker_call(fn, *args, timeout_seconds: int | None = None):
+    timeout = timeout_seconds or settings.docker_operation_timeout_seconds
     try:
-        return get_docker_service().list_containers()
+        return await asyncio.wait_for(asyncio.to_thread(fn, *args), timeout=timeout)
+    except TimeoutError as exc:
+        raise HTTPException(status_code=504, detail=f"docker operation timed out after {timeout}s") from exc
+    except APIError:
+        raise
+    except DockerException as exc:
+        raise HTTPException(status_code=503, detail=f"docker unavailable: {exc}") from exc
+
+
+@router.get("")
+async def list_containers() -> list[dict]:
+    try:
+        return await _run_docker_call(get_docker_service().list_containers)
     except APIError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
 @router.post("")
-def create_container(payload: CreateContainerRequest) -> Dict[str, str]:
+async def create_container(payload: CreateContainerRequest) -> Dict[str, str]:
     image = payload.image or settings.docker_base_image
     try:
-        result = get_docker_service().create_container(payload.name, image)
+        result = await _run_docker_call(get_docker_service().create_container, payload.name, image)
         return {"message": "created", **result}
     except APIError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.delete("/{name}")
-def delete_container(name: str) -> Dict[str, str]:
+async def delete_container(name: str) -> Dict[str, str]:
     try:
-        get_docker_service().delete_container(name)
+        await _run_docker_call(get_docker_service().delete_container, name)
         if runtime_state.get_active_container() == name:
             runtime_state.set_active_container("")
         return {"message": "deleted", "name": name}
@@ -49,9 +62,9 @@ def delete_container(name: str) -> Dict[str, str]:
 
 
 @router.put("/{name}/activate")
-def activate_container(name: str) -> Dict[str, str]:
+async def activate_container(name: str) -> Dict[str, str]:
     try:
-        get_docker_service().get_container(name)
+        await _run_docker_call(get_docker_service().get_container, name)
     except NotFound as exc:
         raise HTTPException(status_code=404, detail="container not found") from exc
 

@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import asyncio
 import base64
 import posixpath
 from typing import Any, Dict
+
+from docker.errors import DockerException
 
 from app.config import runtime_state, settings
 from app.core.docker import get_docker_service
@@ -32,15 +35,33 @@ def _safe_workspace_path(path: str) -> str:
     return target
 
 
-def shell_exec(cmd: str, timeout: int | None = None) -> Dict[str, Any]:
+async def _run_docker_call(fn, *args, timeout_seconds: int | None = None):
+    timeout = timeout_seconds or settings.docker_operation_timeout_seconds
+    try:
+        return await asyncio.wait_for(asyncio.to_thread(fn, *args), timeout=timeout)
+    except TimeoutError as exc:
+        raise ToolError(f"docker operation timed out after {timeout}s") from exc
+    except DockerException as exc:
+        raise ToolError(f"docker unavailable: {exc}") from exc
+
+
+async def shell_exec(cmd: str, timeout: int | None = None) -> Dict[str, Any]:
     """Execute a shell command inside the active Kali container. Returns exit_code and combined stdout/stderr output."""
     validate_command(cmd)
     active = _active_container()
-    result = get_docker_service().exec(active, cmd, timeout or settings.command_timeout_seconds)
+    command_timeout = timeout or settings.command_timeout_seconds
+    operation_timeout = max(settings.docker_operation_timeout_seconds, command_timeout + 5)
+    result = await _run_docker_call(
+        get_docker_service().exec,
+        active,
+        cmd,
+        command_timeout,
+        timeout_seconds=operation_timeout,
+    )
     return {"exit_code": result.exit_code, "output": result.output, "container": active}
 
 
-def upload_file(name: str, b64: str) -> Dict[str, Any]:
+async def upload_file(name: str, b64: str) -> Dict[str, Any]:
     """Upload a file to /tmp/workspace/ in the active container. name is the filename; b64 is base64-encoded content."""
     active = _active_container()
     target = _safe_workspace_path(name)
@@ -48,13 +69,13 @@ def upload_file(name: str, b64: str) -> Dict[str, Any]:
         content = base64.b64decode(b64)
     except Exception as exc:
         raise ToolError("invalid base64 payload") from exc
-    get_docker_service().write_file(active, target, content)
+    await _run_docker_call(get_docker_service().write_file, active, target, content)
     return {"message": "uploaded", "path": target, "container": active}
 
 
-def read_file(path: str) -> Dict[str, Any]:
+async def read_file(path: str) -> Dict[str, Any]:
     """Read a file from /tmp/workspace/ in the active container. path is relative to the workspace."""
     active = _active_container()
     target = _safe_workspace_path(path)
-    content = get_docker_service().read_file(active, target)
+    content = await _run_docker_call(get_docker_service().read_file, active, target)
     return {"path": target, "content": content, "container": active}
