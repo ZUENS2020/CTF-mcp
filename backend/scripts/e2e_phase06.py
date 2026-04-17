@@ -1,3 +1,9 @@
+"""
+End-to-end validation script for CTF AutoPwn.
+
+Tests REST endpoints (containers, callbacks, config) and all MCP tools via
+the standard MCP Streamable HTTP transport (JSON-RPC 2.0).
+"""
 from __future__ import annotations
 
 import argparse
@@ -31,40 +37,41 @@ def log(msg: str) -> None:
     print(f"[E2E] {msg}")
 
 
+# ---------------------------------------------------------------------------
+# REST helpers
+# ---------------------------------------------------------------------------
+
 def http_json(ctx: Context, method: str, path: str, payload: dict | None = None) -> dict | list:
     url = f"{ctx.base_url}{path}"
-    data = None
-    headers = {"Content-Type": "application/json"}
-    if payload is not None:
-        data = json.dumps(payload).encode("utf-8")
-    req = urllib.request.Request(url=url, method=method.upper(), data=data, headers=headers)
-    try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            body = resp.read().decode("utf-8")
-            if not body:
-                return {}
-            return json.loads(body)
-    except urllib.error.HTTPError as exc:
-        detail = exc.read().decode("utf-8", errors="replace")
-        raise StepError(f"{method} {path} failed: HTTP {exc.code}: {detail}") from exc
-    except urllib.error.URLError as exc:
-        raise StepError(f"{method} {path} failed: {exc}") from exc
-
-
-def http_text(ctx: Context, method: str, path: str, body: str, content_type: str = "text/plain") -> str:
-    url = f"{ctx.base_url}{path}"
+    data = json.dumps(payload).encode() if payload is not None else None
     req = urllib.request.Request(
-        url=url,
-        method=method.upper(),
-        data=body.encode("utf-8"),
-        headers={"Content-Type": content_type},
+        url=url, method=method.upper(), data=data,
+        headers={"Content-Type": "application/json"},
     )
     try:
         with urllib.request.urlopen(req, timeout=30) as resp:
-            return resp.read().decode("utf-8", errors="replace")
+            body = resp.read().decode()
+            return json.loads(body) if body else {}
     except urllib.error.HTTPError as exc:
-        detail = exc.read().decode("utf-8", errors="replace")
-        raise StepError(f"{method} {path} failed: HTTP {exc.code}: {detail}") from exc
+        detail = exc.read().decode(errors="replace")
+        raise StepError(f"{method} {path} → HTTP {exc.code}: {detail}") from exc
+    except urllib.error.URLError as exc:
+        raise StepError(f"{method} {path} → {exc}") from exc
+
+
+def http_text(ctx: Context, method: str, path: str, body: str) -> str:
+    url = f"{ctx.base_url}{path}"
+    req = urllib.request.Request(
+        url=url, method=method.upper(),
+        data=body.encode(),
+        headers={"Content-Type": "text/plain"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return resp.read().decode(errors="replace")
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode(errors="replace")
+        raise StepError(f"{method} {path} → HTTP {exc.code}: {detail}") from exc
 
 
 def ensure(cond: bool, message: str) -> None:
@@ -72,107 +79,170 @@ def ensure(cond: bool, message: str) -> None:
         raise StepError(message)
 
 
+# ---------------------------------------------------------------------------
+# MCP client — standard Streamable HTTP transport (JSON-RPC 2.0)
+# ---------------------------------------------------------------------------
+
+class MCPClient:
+    """Minimal stateless MCP client over HTTP."""
+
+    def __init__(self, base_url: str) -> None:
+        self._url = base_url.rstrip("/") + "/mcp"
+        self._session_id: str | None = None
+        self._req_id = 0
+
+    def _next_id(self) -> int:
+        self._req_id += 1
+        return self._req_id
+
+    def _post(self, payload: dict) -> dict:
+        data = json.dumps(payload).encode()
+        headers: dict[str, str] = {
+            "Content-Type": "application/json",
+            "Accept": "application/json, text/event-stream",
+        }
+        if self._session_id:
+            headers["Mcp-Session-Id"] = self._session_id
+        req = urllib.request.Request(url=self._url, data=data, headers=headers, method="POST")
+        try:
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                # Capture session ID from response headers
+                sid = resp.headers.get("Mcp-Session-Id")
+                if sid:
+                    self._session_id = sid
+                body = resp.read().decode()
+                if not body.strip():
+                    return {}
+                # Handle SSE envelope: "data: {...}\n\n"
+                if body.lstrip().startswith("data:"):
+                    for line in body.splitlines():
+                        line = line.strip()
+                        if line.startswith("data:"):
+                            body = line[5:].strip()
+                            break
+                return json.loads(body)
+        except urllib.error.HTTPError as exc:
+            detail = exc.read().decode(errors="replace")
+            raise StepError(f"MCP POST → HTTP {exc.code}: {detail}") from exc
+        except urllib.error.URLError as exc:
+            raise StepError(f"MCP POST → {exc}") from exc
+
+    def initialize(self) -> None:
+        resp = self._post({
+            "jsonrpc": "2.0",
+            "id": self._next_id(),
+            "method": "initialize",
+            "params": {
+                "protocolVersion": "2024-11-05",
+                "capabilities": {},
+                "clientInfo": {"name": "e2e-test", "version": "1.0"},
+            },
+        })
+        if "error" in resp:
+            raise StepError(f"MCP initialize failed: {resp['error']}")
+        # Send initialized notification (no response expected)
+        self._post({"jsonrpc": "2.0", "method": "notifications/initialized"})
+
+    def list_tools(self) -> list[dict]:
+        resp = self._post({
+            "jsonrpc": "2.0",
+            "id": self._next_id(),
+            "method": "tools/list",
+        })
+        if "error" in resp:
+            raise StepError(f"MCP tools/list failed: {resp['error']}")
+        return resp.get("result", {}).get("tools", [])
+
+    def call_tool(self, name: str, arguments: dict) -> dict:
+        resp = self._post({
+            "jsonrpc": "2.0",
+            "id": self._next_id(),
+            "method": "tools/call",
+            "params": {"name": name, "arguments": arguments},
+        })
+        if "error" in resp:
+            raise StepError(f"MCP tools/call {name} failed: {resp['error']}")
+        result = resp.get("result", {})
+        # FastMCP returns content as list of text blocks; unwrap to dict for convenience
+        content = result.get("content", [])
+        if content and isinstance(content, list) and content[0].get("type") == "text":
+            try:
+                return json.loads(content[0]["text"])
+            except (json.JSONDecodeError, KeyError):
+                return {"raw": content[0].get("text", "")}
+        return result
+
+
+# ---------------------------------------------------------------------------
+# Test steps
+# ---------------------------------------------------------------------------
+
 def run(ctx: Context) -> None:
     log(f"base={ctx.base_url} container={ctx.container_name}")
 
+    # 1. Health check
     log("1/11 health check")
     health = http_json(ctx, "GET", "/healthz")
-    ensure(isinstance(health, dict) and health.get("status") == "ok", "healthz returned unexpected payload")
+    ensure(isinstance(health, dict) and health.get("status") == "ok", "healthz unexpected payload")
 
+    # 2. Create container
     log("2/11 create container")
     http_json(ctx, "POST", "/api/containers", {"name": ctx.container_name, "image": ctx.image})
 
-    log("3/11 set active container")
+    # 3. Activate container
+    log("3/11 activate container")
     active = http_json(ctx, "PUT", f"/api/containers/{urllib.parse.quote(ctx.container_name)}/activate")
     ensure(isinstance(active, dict) and active.get("name") == ctx.container_name, "activate response mismatch")
 
-    log("4/11 MCP shell_exec sanity")
-    shell_res = http_json(
-        ctx,
-        "POST",
-        "/mcp",
-        {"tool": "shell_exec", "arguments": {"cmd": "echo phase06_ok"}},
-    )
-    out = ((shell_res or {}).get("result") or {}).get("output", "") if isinstance(shell_res, dict) else ""
-    ensure("phase06_ok" in out, "shell_exec output missing marker")
+    # Initialise MCP session
+    mcp = MCPClient(ctx.base_url)
+    mcp.initialize()
 
-    log("5/11 upload/read file through MCP")
-    http_json(
-        ctx,
-        "POST",
-        "/mcp",
-        {"tool": "shell_exec", "arguments": {"cmd": "mkdir -p /tmp/workspace"}},
-    )
+    # Verify tools are registered
+    tools = mcp.list_tools()
+    tool_names = {t["name"] for t in tools}
+    for expected in ("shell_exec", "upload_file", "read_file", "start_bore", "stop_bore",
+                     "list_bore_tunnels", "get_callbacks"):
+        ensure(expected in tool_names, f"MCP tool '{expected}' not found in tools/list")
 
+    # 4. shell_exec
+    log("4/11 MCP shell_exec")
+    shell_res = mcp.call_tool("shell_exec", {"cmd": "echo phase06_ok"})
+    ensure("phase06_ok" in shell_res.get("output", ""), "shell_exec output missing marker")
+
+    # 5. upload_file / read_file
+    log("5/11 MCP upload_file / read_file")
+    mcp.call_tool("shell_exec", {"cmd": "mkdir -p /tmp/workspace"})
     sample = f"phase06-file-check @ {datetime.now(timezone.utc).isoformat()}"
-    encoded = base64.b64encode(sample.encode("utf-8")).decode("ascii")
-    http_json(
-        ctx,
-        "POST",
-        "/mcp",
-        {"tool": "upload_file", "arguments": {"name": "phase06.txt", "b64": encoded}},
-    )
-    read_res = http_json(
-        ctx,
-        "POST",
-        "/mcp",
-        {"tool": "read_file", "arguments": {"path": "phase06.txt"}},
-    )
-    content = ((read_res or {}).get("result") or {}).get("content", "") if isinstance(read_res, dict) else ""
-    ensure(sample == content, "read_file content mismatch")
+    mcp.call_tool("upload_file", {"name": "phase06.txt", "b64": base64.b64encode(sample.encode()).decode()})
+    read_res = mcp.call_tool("read_file", {"path": "phase06.txt"})
+    ensure(read_res.get("content", "").strip() == sample, "read_file content mismatch")
 
+    # 6. Post callback via REST
     log("6/11 post callback")
     marker = f"phase06-callback-{int(time.time())}"
     http_text(ctx, "POST", f"/callback/{ctx.callback_token}", marker)
 
-    log("7/11 MCP get_callbacks validation")
-    callbacks_res = http_json(
-        ctx,
-        "POST",
-        "/mcp",
-        {
-            "tool": "get_callbacks",
-            "arguments": {
-                "since": (datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")),
-                "limit": 50,
-            },
-        },
+    # 7. get_callbacks via MCP
+    log("7/11 MCP get_callbacks")
+    cb_res = mcp.call_tool("get_callbacks", {"limit": 100})
+    found = any(
+        r.get("token") == ctx.callback_token and marker in r.get("body", "")
+        for r in cb_res.get("items", [])
     )
-
-    # Since is "now", include fallback query for recent rows.
-    found = False
-    items = []
-    if isinstance(callbacks_res, dict):
-        items = ((callbacks_res.get("result") or {}).get("items") or [])
-        for row in items:
-            if row.get("token") == ctx.callback_token and marker in row.get("body", ""):
-                found = True
-                break
-
-    if not found:
-        callbacks_res = http_json(ctx, "POST", "/mcp", {"tool": "get_callbacks", "arguments": {"limit": 100}})
-        items = ((callbacks_res.get("result") or {}).get("items") or []) if isinstance(callbacks_res, dict) else []
-        for row in items:
-            if row.get("token") == ctx.callback_token and marker in row.get("body", ""):
-                found = True
-                break
-
     ensure(found, "get_callbacks did not return posted callback")
 
-    log("8/11 list_bore_tunnels")
-    list_before = http_json(ctx, "POST", "/mcp", {"tool": "list_bore_tunnels", "arguments": {}})
-    ensure(isinstance(list_before, dict), "list_bore_tunnels response invalid")
+    # 8. list_bore_tunnels
+    log("8/11 MCP list_bore_tunnels")
+    tunnels = mcp.call_tool("list_bore_tunnels", {})
+    ensure("tunnels" in tunnels, "list_bore_tunnels response invalid")
 
-    log("9/11 start_bore")
-    bore_error = None
+    # 9. start_bore
+    log("9/11 MCP start_bore")
+    bore_error: str | None = None
     try:
-        started = http_json(
-            ctx,
-            "POST",
-            "/mcp",
-            {"tool": "start_bore", "arguments": {"local_port": ctx.bore_port}},
-        )
-        ensure(isinstance(started, dict), "start_bore response invalid")
+        started = mcp.call_tool("start_bore", {"local_port": ctx.bore_port})
+        ensure("local_port" in started, "start_bore response missing local_port")
     except StepError as exc:
         bore_error = str(exc)
         if ctx.require_bore:
@@ -181,19 +251,20 @@ def run(ctx: Context) -> None:
     if bore_error:
         log(f"WARN bore start skipped: {bore_error}")
     else:
-        log("10/11 stop_bore")
+        # 10. stop_bore
+        log("10/11 MCP stop_bore")
         time.sleep(1)
-        http_json(
-            ctx,
-            "POST",
-            "/mcp",
-            {"tool": "stop_bore", "arguments": {"local_port": ctx.bore_port}},
-        )
+        mcp.call_tool("stop_bore", {"local_port": ctx.bore_port})
 
+    # 11. Teardown
     log("11/11 teardown")
     if not ctx.keep_container:
         http_json(ctx, "DELETE", f"/api/containers/{urllib.parse.quote(ctx.container_name)}")
 
+
+# ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
 
 def parse_args() -> Context:
     parser = argparse.ArgumentParser(description="Phase 06 E2E validation script")
@@ -202,10 +273,9 @@ def parse_args() -> Context:
     parser.add_argument("--image", default="kalilinux/kali-rolling:latest")
     parser.add_argument("--bore-port", type=int, default=4444)
     parser.add_argument("--callback-token", default=f"phase06-token-{int(time.time())}")
-    parser.add_argument("--require-bore", action="store_true")
-    parser.add_argument("--keep-container", action="store_true")
+    parser.add_argument("--require-bore", action="store_true", help="fail if bore cannot start")
+    parser.add_argument("--keep-container", action="store_true", help="do not delete container after test")
     ns = parser.parse_args()
-
     return Context(
         base_url=ns.base_url.rstrip("/"),
         container_name=ns.container,
@@ -224,10 +294,9 @@ def main() -> int:
     except StepError as exc:
         log(f"FAILED: {exc}")
         return 1
-    except Exception as exc:  # pragma: no cover - top-level guard
+    except Exception as exc:
         log(f"FAILED (unexpected): {exc}")
         return 1
-
     log("PASS")
     return 0
 
