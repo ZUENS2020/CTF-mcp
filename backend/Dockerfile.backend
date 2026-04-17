@@ -38,30 +38,39 @@ RUN set -eux; \
     rm -rf /var/lib/apt/lists/*
 
 RUN set -eux; \
+    case "${TARGETARCH:-amd64}" in \
+      amd64) target_triple="x86_64-unknown-linux-musl" ;; \
+      arm64) target_triple="aarch64-unknown-linux-musl" ;; \
+      *) echo "unsupported TARGETARCH=${TARGETARCH}"; exit 1 ;; \
+    esac; \
+    bore_file="bore-v0.5.3-${target_triple}.tar.gz"; \
+    base_path="/ekzhang/bore/releases/download/v0.5.3/${bore_file}"; \
+    latest_path="/ekzhang/bore/releases/latest/download/bore-${target_triple}.tar.gz"; \
     if [ -n "${BORE_DOWNLOAD_URL}" ]; then \
-      url="${BORE_DOWNLOAD_URL}"; \
-      curl -fsSL "$url" -o /tmp/bore.tar.gz; \
+      candidates="${BORE_DOWNLOAD_URL}"; \
     else \
-      case "${TARGETARCH}" in \
-        amd64) target_triple="x86_64-unknown-linux-musl" ;; \
-        arm64) target_triple="aarch64-unknown-linux-musl" ;; \
-        *) echo "unsupported TARGETARCH=${TARGETARCH}"; exit 1 ;; \
-      esac; \
-      latest_release_url="$(curl -fsSLI -o /dev/null -w '%{url_effective}' https://github.com/ekzhang/bore/releases/latest)"; \
-      latest_tag="$(printf '%s' "$latest_release_url" | sed -E 's#.*/tag/([^/?]+).*#\1#')"; \
-      candidates="https://github.com/ekzhang/bore/releases/download/${latest_tag}/bore-${latest_tag}-${target_triple}.tar.gz https://github.com/ekzhang/bore/releases/latest/download/bore-${target_triple}.tar.gz"; \
-      downloaded=0; \
-      for candidate in $candidates; do \
-        if curl -fsSL "$candidate" -o /tmp/bore.tar.gz; then \
-          url="$candidate"; \
-          downloaded=1; \
-          break; \
-        fi; \
+      candidates=""; \
+      for prefix in \
+        "https://github.com" \
+        "https://ghfast.top/https://github.com" \
+        "https://gh-proxy.com/https://github.com" \
+        "https://ghproxy.net/https://github.com" \
+        "https://mirror.ghproxy.com/https://github.com" \
+        "https://ghps.cc/https://github.com"; do \
+        candidates="${candidates} ${prefix}${base_path} ${prefix}${latest_path}"; \
       done; \
-      if [ "$downloaded" -ne 1 ]; then \
-        echo "failed to download bore from all candidates"; \
-        exit 1; \
+    fi; \
+    downloaded=0; \
+    for candidate in ${candidates}; do \
+      echo ">>> trying ${candidate}"; \
+      if curl -fsSL --connect-timeout 15 --max-time 180 --retry 2 "$candidate" -o /tmp/bore.tar.gz; then \
+        downloaded=1; \
+        break; \
       fi; \
+    done; \
+    if [ "$downloaded" -ne 1 ]; then \
+      echo "failed to download bore from all candidates"; \
+      exit 1; \
     fi; \
     tar -xzf /tmp/bore.tar.gz -C /usr/local/bin bore; \
     chmod +x /usr/local/bin/bore; \
