@@ -12,7 +12,11 @@ def call(base_url: str, cmd: str, timeout: int) -> dict:
         url=f"{base_url.rstrip('/')}/api/kali/exec",
         method="POST",
         data=json.dumps({"cmd": cmd, "timeout": timeout}).encode(),
-        headers={"Content-Type": "application/json"},
+        headers={
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+        },
     )
     with urllib.request.urlopen(req, timeout=timeout + 10) as resp:
         return json.loads(resp.read().decode())
@@ -20,7 +24,7 @@ def call(base_url: str, cmd: str, timeout: int) -> dict:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Execute command in active Kali container via API")
-    parser.add_argument("--base-url", default="http://127.0.0.1:8000")
+    parser.add_argument("--base-url", default="https://api.zuens2020.work")
     parser.add_argument("--timeout", type=int, default=30)
     parser.add_argument("cmd")
     args = parser.parse_args()

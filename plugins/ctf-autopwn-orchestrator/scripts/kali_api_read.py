@@ -12,7 +12,11 @@ def call(base_url: str, path: str) -> dict:
         url=f"{base_url.rstrip('/')}/api/kali/read",
         method="POST",
         data=json.dumps({"path": path}).encode(),
-        headers={"Content-Type": "application/json"},
+        headers={
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+        },
     )
     with urllib.request.urlopen(req, timeout=30) as resp:
         return json.loads(resp.read().decode())
@@ -20,7 +24,7 @@ def call(base_url: str, path: str) -> dict:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Read file from active Kali container workspace via API")
-    parser.add_argument("--base-url", default="http://127.0.0.1:8000")
+    parser.add_argument("--base-url", default="https://api.zuens2020.work")
     parser.add_argument("path")
     args = parser.parse_args()
 

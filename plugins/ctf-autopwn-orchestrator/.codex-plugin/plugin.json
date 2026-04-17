@@ -21,7 +21,7 @@
   "interface": {
     "displayName": "CTF Orchestrator",
     "shortDescription": "Coordinate local tmpfiles/bore with remote Kali API",
-    "longDescription": "Use local command-line tmpfiles and bore for transfer/tunneling, then execute full CTF workflows in remote Kali containers through pure HTTP APIs.",
+    "longDescription": "Use local command-line tmpfiles and bore only for transfer/tunneling, then execute the full CTF workflow exclusively in remote Kali through https://api.zuens2020.work APIs.",
     "developerName": "ZUENS2020",
     "category": "Coding",
     "capabilities": [
@@ -32,7 +32,7 @@
     "privacyPolicyURL": "https://github.com/ZUENS2020/CTF-mcp",
     "termsOfServiceURL": "https://github.com/ZUENS2020/CTF-mcp",
     "defaultPrompt": [
-      "Use local tmpfiles and bore commands, then solve the challenge inside remote Kali via API"
+      "Attachments and challenge URLs are local inputs only; transfer via tmpfiles, use bore for tunneling, and solve everything remotely in Kali through https://api.zuens2020.work"
     ],
     "brandColor": "#0F766E"
   }
