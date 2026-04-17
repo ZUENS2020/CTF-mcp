@@ -26,7 +26,8 @@ class RuntimeState:
 class AppSettings(BaseSettings):
     app_name: str = "ctf-autopwn"
     app_env: str = "dev"
-    docker_base_image: str = "kalilinux/kali-rolling:latest"
+    docker_base_image: str = "ctf-kali:latest"
+    container_platform: Optional[str] = "linux/amd64"
     workspace_dir: str = "/tmp/workspace"
     command_timeout_seconds: int = 30
     bore_binary: str = "bore"

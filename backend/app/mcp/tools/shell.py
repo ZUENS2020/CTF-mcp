@@ -6,11 +6,15 @@ from typing import Any, Dict
 
 from app.config import runtime_state, settings
 from app.core.docker import get_docker_service
+from app.core.errors import ToolError
 from app.core.security import validate_command
 
-
-class ToolError(RuntimeError):
-    pass
+__all__ = [
+    "ToolError",
+    "shell_exec",
+    "upload_file",
+    "read_file",
+]
 
 
 def _active_container() -> str:

@@ -7,6 +7,7 @@ export function SettingsPage() {
   const [cfDomain, setCfDomain] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     apiClient
@@ -22,32 +23,56 @@ export function SettingsPage() {
     event.preventDefault();
     setError(null);
     setMessage(null);
+    setSaving(true);
     try {
       await apiClient.saveConfig({
-        cf_token: cfToken,
-        cf_domain: cfDomain
+        cf_token: cfToken || null,
+        cf_domain: cfDomain || null
       });
-      setMessage("Saved");
+      setMessage("Configuration saved.");
     } catch (err: unknown) {
       setError(String(err));
+    } finally {
+      setSaving(false);
     }
   }
 
   return (
     <section>
-      <h2>Settings</h2>
-      {error ? <p className="error">{error}</p> : null}
-      {message ? <p>{message}</p> : null}
-      <form className="card" onSubmit={onSubmit}>
+      <div className="page-head">
+        <div>
+          <h2>Settings</h2>
+          <div className="subtitle">Cloudflare Tunnel credentials for HTTP callbacks.</div>
+        </div>
+      </div>
+
+      {error ? <div className="error">{error}</div> : null}
+      {message ? <div className="success">{message}</div> : null}
+
+      <form className="card" onSubmit={onSubmit} style={{ maxWidth: 640 }}>
         <label>
           Cloudflare Token
-          <input value={cfToken} onChange={(e) => setCfToken(e.target.value)} />
+          <input
+            value={cfToken}
+            onChange={(e) => setCfToken(e.target.value)}
+            placeholder="cfd_xxx..."
+            autoComplete="off"
+          />
         </label>
         <label>
           Callback Domain
-          <input value={cfDomain} onChange={(e) => setCfDomain(e.target.value)} />
+          <input
+            value={cfDomain}
+            onChange={(e) => setCfDomain(e.target.value)}
+            placeholder="cb.example.com"
+            autoComplete="off"
+          />
         </label>
-        <button type="submit">Save</button>
+        <div className="row">
+          <button type="submit" disabled={saving}>
+            {saving ? "Saving..." : "Save"}
+          </button>
+        </div>
       </form>
     </section>
   );

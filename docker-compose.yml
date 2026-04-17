@@ -19,6 +19,7 @@ services:
     environment:
       - CTF_APP_ENV=dev
       - CTF_DOCKER_BASE_IMAGE=${CTF_DOCKER_BASE_IMAGE:-ctf-kali:latest}
+      - CTF_CONTAINER_PLATFORM=${CTF_CONTAINER_PLATFORM:-linux/amd64}
       - CTF_WORKSPACE_DIR=/tmp/workspace
       - CTF_COMMAND_TIMEOUT_SECONDS=30
       - CTF_BORE_BINARY=bore
@@ -61,15 +62,19 @@ services:
       dockerfile: Dockerfile.kali
       provenance: false
       sbom: false
+      platforms:
+        - linux/amd64
       args:
         KALI_MIRROR: ${KALI_MIRROR:-http://mirrors.tuna.tsinghua.edu.cn/kali}
         APT_RETRIES: ${APT_RETRIES:-8}
         APT_TIMEOUT: ${APT_TIMEOUT:-30}
         PIP_INDEX_URL: ${PIP_INDEX_URL:-https://pypi.tuna.tsinghua.edu.cn/simple}
         PIP_TRUSTED_HOST: ${PIP_TRUSTED_HOST:-pypi.tuna.tsinghua.edu.cn}
+        BORE_DOWNLOAD_URL: ${BORE_DOWNLOAD_URL:-}
         HTTP_PROXY: ${HTTP_PROXY:-}
         HTTPS_PROXY: ${HTTPS_PROXY:-}
         NO_PROXY: ${NO_PROXY:-}
     image: ctf-kali:latest
+    platform: linux/amd64
     container_name: ctf-kali-base
     command: ["sleep", "infinity"]

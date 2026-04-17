@@ -1,10 +1,12 @@
 FROM kalilinux/kali-rolling:latest
 
+ARG TARGETARCH
 ARG KALI_MIRROR=http://mirrors.tuna.tsinghua.edu.cn/kali
 ARG APT_RETRIES=8
 ARG APT_TIMEOUT=30
 ARG PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
 ARG PIP_TRUSTED_HOST=pypi.tuna.tsinghua.edu.cn
+ARG BORE_DOWNLOAD_URL=
 ARG HTTP_PROXY=
 ARG HTTPS_PROXY=
 ARG NO_PROXY=
@@ -15,8 +17,10 @@ ENV NO_PROXY=${NO_PROXY}
 ENV PIP_INDEX_URL=${PIP_INDEX_URL}
 ENV PIP_TRUSTED_HOST=${PIP_TRUSTED_HOST}
 
+# ---- Base system + Kali toolchain ----
 RUN set -eux; \
-        printf 'Acquire::Retries "%s";\nAcquire::http::Timeout "%s";\nAcquire::https::Timeout "%s";\nAcquire::ForceIPv4 "true";\n' "$APT_RETRIES" "$APT_TIMEOUT" "$APT_TIMEOUT" > /etc/apt/apt.conf.d/99ctf-network; \
+        printf 'Acquire::Retries "%s";\nAcquire::http::Timeout "%s";\nAcquire::https::Timeout "%s";\nAcquire::ForceIPv4 "true";\n' \
+            "$APT_RETRIES" "$APT_TIMEOUT" "$APT_TIMEOUT" > /etc/apt/apt.conf.d/99ctf-network; \
         export http_proxy="${HTTP_PROXY}" https_proxy="${HTTPS_PROXY}" no_proxy="${NO_PROXY}"; \
         mirrors="${KALI_MIRROR%/} http://mirrors.ustc.edu.cn/kali http://mirrors.aliyun.com/kali http://http.kali.org/kali"; \
         updated=0; \
@@ -40,6 +44,36 @@ RUN set -eux; \
         rm -rf /var/lib/apt/lists/*
 
 RUN pip3 install --break-system-packages --upgrade pip pwntools
+
+# ---- bore binary (for reverse shell tunnels started inside the container) ----
+RUN set -eux; \
+    export http_proxy="${HTTP_PROXY}" https_proxy="${HTTPS_PROXY}" no_proxy="${NO_PROXY}"; \
+    arch="${TARGETARCH:-$(dpkg --print-architecture)}"; \
+    case "$arch" in \
+        amd64) target_triple="x86_64-unknown-linux-musl" ;; \
+        arm64) target_triple="aarch64-unknown-linux-musl" ;; \
+        *) echo "unsupported arch=$arch"; exit 1 ;; \
+    esac; \
+    if [ -n "${BORE_DOWNLOAD_URL}" ]; then \
+      url="${BORE_DOWNLOAD_URL}"; \
+      curl -fsSL "$url" -o /tmp/bore.tar.gz; \
+    else \
+      latest_release_url="$(curl -fsSLI -o /dev/null -w '%{url_effective}' https://github.com/ekzhang/bore/releases/latest)"; \
+      latest_tag="$(printf '%s' "$latest_release_url" | sed -E 's#.*/tag/([^/?]+).*#\1#')"; \
+      candidates="https://github.com/ekzhang/bore/releases/download/${latest_tag}/bore-${latest_tag}-${target_triple}.tar.gz \
+                  https://github.com/ekzhang/bore/releases/latest/download/bore-${target_triple}.tar.gz"; \
+      downloaded=0; \
+      for candidate in $candidates; do \
+        if curl -fsSL "$candidate" -o /tmp/bore.tar.gz; then \
+          downloaded=1; break; \
+        fi; \
+      done; \
+      [ "$downloaded" -eq 1 ] || { echo "failed to download bore"; exit 1; }; \
+    fi; \
+    tar -xzf /tmp/bore.tar.gz -C /usr/local/bin bore; \
+    chmod +x /usr/local/bin/bore; \
+    bore --help >/dev/null; \
+    rm -f /tmp/bore.tar.gz
 
 RUN mkdir -p /tmp/workspace
 WORKDIR /tmp/workspace

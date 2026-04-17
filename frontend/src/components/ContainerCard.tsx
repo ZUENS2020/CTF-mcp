@@ -1,5 +1,5 @@
-import { ActiveBadge } from "./ActiveBadge";
 import type { ContainerInfo } from "../api/client";
+import { StatusBadge } from "./StatusBadge";
 
 type Props = {
   item: ContainerInfo;
@@ -13,15 +13,21 @@ export function ContainerCard({ item, isActive, onActivate, onDelete }: Props) {
     <article className="card">
       <div className="card-head">
         <h3>{item.name}</h3>
-        <ActiveBadge active={isActive} />
+        {isActive ? <span className="badge badge-active">active</span> : <StatusBadge status={item.status} />}
       </div>
-      <p>Status: {item.status}</p>
-      <p>Image: {item.image}</p>
+      <div className="meta-grid">
+        <span className="k">id</span>
+        <span className="v">{item.id}</span>
+        <span className="k">status</span>
+        <span className="v">{item.status}</span>
+        <span className="k">image</span>
+        <span className="v">{item.image}</span>
+      </div>
       <div className="row">
         <button onClick={() => onActivate(item.name)} disabled={isActive}>
-          Set Active
+          {isActive ? "Active" : "Set Active"}
         </button>
-        <button className="danger" onClick={() => onDelete(item.name)}>
+        <button className="danger ghost" onClick={() => onDelete(item.name)}>
           Delete
         </button>
       </div>

@@ -9,6 +9,8 @@ from typing import Any, Dict, List, Optional
 import docker
 from docker.errors import APIError, NotFound
 
+from app.config import settings
+
 
 @dataclass
 class ExecResult:
@@ -36,8 +38,7 @@ class DockerService:
         return self.client.containers.get(name)
 
     def create_container(self, name: str, image: str) -> Dict[str, Any]:
-        container = self.client.containers.run(
-            image,
+        kwargs: Dict[str, Any] = dict(
             name=name,
             command="sleep infinity",
             detach=True,
@@ -47,6 +48,9 @@ class DockerService:
             mem_limit="2g",
             nano_cpus=2_000_000_000,
         )
+        if settings.container_platform:
+            kwargs["platform"] = settings.container_platform
+        container = self.client.containers.run(image, **kwargs)
         return {"id": container.short_id, "name": container.name, "status": container.status}
 
     def delete_container(self, name: str) -> None:
