@@ -7,6 +7,9 @@ services:
       sbom: false
       args:
         BORE_DOWNLOAD_URL: ${BORE_DOWNLOAD_URL:-}
+        DEBIAN_MIRROR: ${DEBIAN_MIRROR:-http://mirrors.tuna.tsinghua.edu.cn}
+        PIP_INDEX_URL: ${PIP_INDEX_URL:-https://pypi.tuna.tsinghua.edu.cn/simple}
+        PIP_TRUSTED_HOST: ${PIP_TRUSTED_HOST:-pypi.tuna.tsinghua.edu.cn}
         HTTP_PROXY: ${HTTP_PROXY:-}
         HTTPS_PROXY: ${HTTPS_PROXY:-}
         NO_PROXY: ${NO_PROXY:-}
@@ -59,9 +62,11 @@ services:
       provenance: false
       sbom: false
       args:
-        KALI_MIRROR: ${KALI_MIRROR:-http://http.kali.org/kali}
+        KALI_MIRROR: ${KALI_MIRROR:-http://mirrors.tuna.tsinghua.edu.cn/kali}
         APT_RETRIES: ${APT_RETRIES:-8}
         APT_TIMEOUT: ${APT_TIMEOUT:-30}
+        PIP_INDEX_URL: ${PIP_INDEX_URL:-https://pypi.tuna.tsinghua.edu.cn/simple}
+        PIP_TRUSTED_HOST: ${PIP_TRUSTED_HOST:-pypi.tuna.tsinghua.edu.cn}
         HTTP_PROXY: ${HTTP_PROXY:-}
         HTTPS_PROXY: ${HTTPS_PROXY:-}
         NO_PROXY: ${NO_PROXY:-}

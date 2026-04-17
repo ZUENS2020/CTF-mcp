@@ -1,8 +1,10 @@
 FROM kalilinux/kali-rolling:latest
 
-ARG KALI_MIRROR=http://http.kali.org/kali
+ARG KALI_MIRROR=http://mirrors.tuna.tsinghua.edu.cn/kali
 ARG APT_RETRIES=8
 ARG APT_TIMEOUT=30
+ARG PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
+ARG PIP_TRUSTED_HOST=pypi.tuna.tsinghua.edu.cn
 ARG HTTP_PROXY=
 ARG HTTPS_PROXY=
 ARG NO_PROXY=
@@ -10,14 +12,29 @@ ARG NO_PROXY=
 ENV HTTP_PROXY=${HTTP_PROXY}
 ENV HTTPS_PROXY=${HTTPS_PROXY}
 ENV NO_PROXY=${NO_PROXY}
+ENV PIP_INDEX_URL=${PIP_INDEX_URL}
+ENV PIP_TRUSTED_HOST=${PIP_TRUSTED_HOST}
 
 RUN set -eux; \
-        printf 'deb %s kali-rolling main contrib non-free non-free-firmware\n' "${KALI_MIRROR%/}" > /etc/apt/sources.list; \
         printf 'Acquire::Retries "%s";\nAcquire::http::Timeout "%s";\nAcquire::https::Timeout "%s";\nAcquire::ForceIPv4 "true";\n' "$APT_RETRIES" "$APT_TIMEOUT" "$APT_TIMEOUT" > /etc/apt/apt.conf.d/99ctf-network; \
+        export http_proxy="${HTTP_PROXY}" https_proxy="${HTTPS_PROXY}" no_proxy="${NO_PROXY}"; \
+        mirrors="${KALI_MIRROR%/} http://mirrors.ustc.edu.cn/kali http://mirrors.aliyun.com/kali http://http.kali.org/kali"; \
+        updated=0; \
+        for mirror in $mirrors; do \
+            printf 'deb %s kali-rolling main contrib non-free non-free-firmware\n' "$mirror" > /etc/apt/sources.list; \
+            if apt-get update -o APT::Update::Error-Mode=any; then \
+                updated=1; \
+                break; \
+            fi; \
+        done; \
+        if [ "$updated" -ne 1 ]; then \
+            echo "apt update failed on all mirrors"; \
+            exit 1; \
+        fi; \
         packages='kali-linux-headless python3-pip python3-venv metasploit-framework chisel'; \
-        apt-get update; \
         if ! DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends $packages; then \
-            apt-get update; \
+            echo "apt install failed, refreshing index and retrying"; \
+            apt-get update -o APT::Update::Error-Mode=any; \
             DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends $packages; \
         fi; \
         rm -rf /var/lib/apt/lists/*
