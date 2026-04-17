@@ -14,3 +14,4 @@ backend/data/app.db
 .venv/
 backend/.venv/
 build.log
+status.txt
