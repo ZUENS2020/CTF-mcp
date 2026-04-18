@@ -5,19 +5,13 @@ import { ContainerCard } from "../components/ContainerCard";
 
 export function ContainersPage() {
   const [items, setItems] = useState<ContainerInfo[]>([]);
-  const [active, setActive] = useState<string | null>(null);
   const [name, setName] = useState("kali-1");
   const [image, setImage] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
   const load = useCallback(async () => {
-    const [containers, activeResp] = await Promise.all([
-      apiClient.getContainers(),
-      apiClient.getActiveContainer()
-    ]);
-    setItems(containers);
-    setActive(activeResp.active_container);
+    setItems(await apiClient.getContainers());
   }, []);
 
   useEffect(() => {
@@ -42,16 +36,6 @@ export function ContainersPage() {
     }
   }
 
-  async function onActivate(containerName: string) {
-    setError(null);
-    try {
-      await apiClient.activateContainer(containerName);
-      await load();
-    } catch (err: unknown) {
-      setError(String(err));
-    }
-  }
-
   async function onDelete(containerName: string) {
     if (!confirm(`Delete container "${containerName}"? This is irreversible.`)) return;
     setError(null);
@@ -68,7 +52,7 @@ export function ContainersPage() {
       <div className="page-head">
         <div>
           <h2>Containers</h2>
-          <div className="subtitle">Kali worker containers — one is the active MCP target.</div>
+          <div className="subtitle">Kali worker containers for isolated concurrent tasks.</div>
         </div>
         <button className="ghost" onClick={() => void load()}>Refresh</button>
       </div>
@@ -102,8 +86,6 @@ export function ContainersPage() {
             <ContainerCard
               key={item.id}
               item={item}
-              isActive={item.name === active}
-              onActivate={onActivate}
               onDelete={onDelete}
             />
           ))}

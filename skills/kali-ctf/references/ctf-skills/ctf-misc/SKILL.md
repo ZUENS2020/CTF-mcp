@@ -11,6 +11,12 @@ description: Misc 题专项方法。用于 jail、编码、脚本陷阱、协议
 2. 本地仅负责上传附件与 frpc 穿透。
 3. 优先最短可复现链路，避免过度复杂化。
 
+## 并发容器约定
+
+1. 统一使用主技能已初始化的 `CONTAINER_NAME`（如 `ai-c-misc-001`）。
+2. 所有 `/api/kali/exec`、`/api/kali/read` 请求必须显式携带 `container=$CONTAINER_NAME`。
+3. 禁止在子技能中硬编码容器名。
+
 ## 工具准备（远端执行）
 
 ```bash

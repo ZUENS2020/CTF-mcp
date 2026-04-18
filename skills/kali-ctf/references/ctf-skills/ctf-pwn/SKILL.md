@@ -9,7 +9,13 @@ description: Pwn 题专项方法。用于栈溢出、格式化字符串、堆利
 
 1. 二进制分析、调试、exp 运行全部在远端 Kali。
 2. 本地只做附件上传与端口穿透，不执行 pwn 工具链。
-3. 所有脚本通过 `/api/kali/exec` 执行并回收输出。
+3. 所有脚本通过 `/api/kali/exec`（带 `container`）执行并回收输出。
+
+## 并发容器约定
+
+1. 统一使用主技能已初始化的 `CONTAINER_NAME`（如 `ai-b-pwn-001`）。
+2. 所有 `/api/kali/exec`、`/api/kali/read` 请求必须显式携带 `container=$CONTAINER_NAME`。
+3. 禁止在子技能中硬编码容器名。
 
 ## 工具准备（远端执行）
 

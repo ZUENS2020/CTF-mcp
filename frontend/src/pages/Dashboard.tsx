@@ -3,29 +3,22 @@ import { useCallback, useEffect, useState } from "react";
 import {
   apiClient,
   type CallbackRecord,
-  type ContainerInfo,
-  type TunnelInfo
+  type ContainerInfo
 } from "../api/client";
 import { StatusBadge } from "../components/StatusBadge";
 
 export function DashboardPage() {
-  const [active, setActive] = useState<string | null>(null);
   const [containers, setContainers] = useState<ContainerInfo[]>([]);
   const [callbacks, setCallbacks] = useState<CallbackRecord[]>([]);
-  const [tunnels, setTunnels] = useState<TunnelInfo[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const [a, c, cb, tn] = await Promise.all([
-      apiClient.getActiveContainer(),
+    const [c, cb] = await Promise.all([
       apiClient.getContainers(),
-      apiClient.getCallbacks(),
-      apiClient.getTunnels()
+      apiClient.getCallbacks()
     ]);
-    setActive(a.active_container);
     setContainers(c);
     setCallbacks(cb);
-    setTunnels(tn.tunnels);
   }, []);
 
   useEffect(() => {
@@ -37,14 +30,13 @@ export function DashboardPage() {
   }, [load]);
 
   const running = containers.filter((c) => c.status.toLowerCase() === "running").length;
-  const liveTunnels = tunnels.filter((t) => t.running).length;
 
   return (
     <section>
       <div className="page-head">
         <div>
           <h2>Dashboard</h2>
-          <div className="subtitle">Overview of containers, tunnels, and recent callbacks.</div>
+          <div className="subtitle">Overview of containers and recent callbacks.</div>
         </div>
       </div>
 
@@ -52,19 +44,9 @@ export function DashboardPage() {
 
       <div className="stat-grid">
         <div className="stat-card">
-          <div className="label">Active container</div>
-          <div className="value">{active ?? "—"}</div>
-          <div className="hint">target of MCP shell_exec tools</div>
-        </div>
-        <div className="stat-card">
           <div className="label">Containers</div>
           <div className="value">{containers.length}</div>
           <div className="hint">{running} running</div>
-        </div>
-        <div className="stat-card">
-          <div className="label">Bore tunnels</div>
-          <div className="value">{liveTunnels}</div>
-          <div className="hint">{tunnels.length} total configured</div>
         </div>
         <div className="stat-card">
           <div className="label">Callbacks</div>
@@ -82,11 +64,7 @@ export function DashboardPage() {
             <article className="card" key={c.id}>
               <div className="card-head">
                 <h3>{c.name}</h3>
-                {c.name === active ? (
-                  <span className="badge badge-active">active</span>
-                ) : (
-                  <StatusBadge status={c.status} />
-                )}
+                <StatusBadge status={c.status} />
               </div>
               <div className="meta-grid">
                 <span className="k">image</span>

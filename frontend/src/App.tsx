@@ -6,12 +6,10 @@ import { CallbacksPage } from "./pages/Callbacks";
 import { ContainersPage } from "./pages/Containers";
 import { DashboardPage } from "./pages/Dashboard";
 import { SettingsPage } from "./pages/Settings";
-import { TunnelsPage } from "./pages/Tunnels";
 
 const links = [
   { to: "/", label: "Dashboard" },
   { to: "/containers", label: "Containers" },
-  { to: "/tunnels", label: "Tunnels" },
   { to: "/callbacks", label: "Callbacks" },
   { to: "/settings", label: "Settings" }
 ];
@@ -60,7 +58,6 @@ export function App() {
         <Routes>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/containers" element={<ContainersPage />} />
-          <Route path="/tunnels" element={<TunnelsPage />} />
           <Route path="/callbacks" element={<CallbacksPage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Routes>

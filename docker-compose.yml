@@ -6,7 +6,6 @@ services:
       provenance: false
       sbom: false
       args:
-        BORE_DOWNLOAD_URL: ${BORE_DOWNLOAD_URL:-}
         DEBIAN_MIRROR: ${DEBIAN_MIRROR:-http://mirrors.tuna.tsinghua.edu.cn}
         PIP_INDEX_URL: ${PIP_INDEX_URL:-https://pypi.tuna.tsinghua.edu.cn/simple}
         PIP_TRUSTED_HOST: ${PIP_TRUSTED_HOST:-pypi.tuna.tsinghua.edu.cn}
@@ -28,9 +27,6 @@ services:
       - CTF_COMMAND_TIMEOUT_SECONDS=30
       - CTF_DOCKER_API_TIMEOUT_SECONDS=${CTF_DOCKER_API_TIMEOUT_SECONDS:-15}
       - CTF_DOCKER_OPERATION_TIMEOUT_SECONDS=${CTF_DOCKER_OPERATION_TIMEOUT_SECONDS:-20}
-      - CTF_BORE_BINARY=bore
-      - CTF_BORE_SERVER=bore.pub
-      - CTF_BORE_RESTART_BACKOFF_SECONDS=2
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./backend/data:/app/data
@@ -76,7 +72,6 @@ services:
         APT_TIMEOUT: ${APT_TIMEOUT:-30}
         PIP_INDEX_URL: ${PIP_INDEX_URL:-https://pypi.tuna.tsinghua.edu.cn/simple}
         PIP_TRUSTED_HOST: ${PIP_TRUSTED_HOST:-pypi.tuna.tsinghua.edu.cn}
-        BORE_DOWNLOAD_URL: ${BORE_DOWNLOAD_URL:-}
         FRP_DOWNLOAD_URL: ${FRP_DOWNLOAD_URL:-}
         FRP_VERSION: ${FRP_VERSION:-v0.61.1}
         HTTP_PROXY: ${HTTP_PROXY:-}

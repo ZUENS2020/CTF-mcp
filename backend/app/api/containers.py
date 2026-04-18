@@ -7,7 +7,7 @@ from docker.errors import APIError, DockerException, NotFound
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from app.config import runtime_state, settings
+from app.config import settings
 from app.core.docker import get_docker_service
 
 router = APIRouter(prefix="/api/containers", tags=["containers"])
@@ -52,27 +52,8 @@ async def create_container(payload: CreateContainerRequest) -> Dict[str, str]:
 async def delete_container(name: str) -> Dict[str, str]:
     try:
         await _run_docker_call(get_docker_service().delete_container, name)
-        if runtime_state.get_active_container() == name:
-            runtime_state.set_active_container("")
         return {"message": "deleted", "name": name}
     except NotFound as exc:
         raise HTTPException(status_code=404, detail="container not found") from exc
     except APIError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-
-@router.put("/{name}/activate")
-async def activate_container(name: str) -> Dict[str, str]:
-    try:
-        await _run_docker_call(get_docker_service().get_container, name)
-    except NotFound as exc:
-        raise HTTPException(status_code=404, detail="container not found") from exc
-
-    runtime_state.set_active_container(name)
-    return {"message": "active container set", "name": name}
-
-
-@router.get("/active")
-def get_active_container() -> Dict[str, str | None]:
-    active = runtime_state.get_active_container() or None
-    return {"active_container": active}

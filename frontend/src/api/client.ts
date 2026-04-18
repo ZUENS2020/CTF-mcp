@@ -19,21 +19,6 @@ export type AppConfig = {
   cf_domain: string | null;
 };
 
-export type TunnelInfo = {
-  local_port: number;
-  server: string;
-  container?: string;
-  desired: boolean;
-  running: boolean;
-  remote_host: string | null;
-  remote_port: number | null;
-  restart_count: number;
-  started_at: string;
-  last_exit_code: number | null;
-  last_error: string | null;
-  last_logs: string[];
-};
-
 // Relative base — nginx proxies /api, /mcp, /callback, /healthz to backend.
 // For `vite dev` outside Docker, set VITE_API_BASE=http://127.0.0.1:8000 in .env.local.
 const API_BASE = import.meta.env.VITE_API_BASE ?? "";
@@ -67,12 +52,6 @@ export const apiClient = {
     }),
   deleteContainer: (name: string) =>
     request<{ message: string }>(`/api/containers/${encodeURIComponent(name)}`, { method: "DELETE" }),
-  activateContainer: (name: string) =>
-    request<{ active_container: string }>(
-      `/api/containers/${encodeURIComponent(name)}/activate`,
-      { method: "PUT" }
-    ),
-  getActiveContainer: () => request<{ active_container: string | null }>("/api/containers/active"),
 
   getCallbacks: () => request<CallbackRecord[]>("/api/callbacks"),
   clearCallbacks: () => request<{ message: string }>("/api/callbacks", { method: "DELETE" }),
@@ -82,7 +61,5 @@ export const apiClient = {
     request<{ message: string }>("/api/config", {
       method: "PUT",
       body: JSON.stringify(config)
-    }),
-
-  getTunnels: () => request<{ tunnels: TunnelInfo[] }>("/api/tunnels")
+    })
 };

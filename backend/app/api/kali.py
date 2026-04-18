@@ -8,7 +8,7 @@ from docker.errors import APIError, DockerException, NotFound
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from app.config import runtime_state, settings
+from app.config import settings
 from app.core.docker import get_docker_service
 from app.core.security import validate_command
 
@@ -16,11 +16,13 @@ router = APIRouter(prefix="/api/kali", tags=["kali"])
 
 
 class ExecRequest(BaseModel):
+    container: str = Field(min_length=1)
     cmd: str = Field(min_length=1)
     timeout: int | None = Field(default=None, ge=1, le=3600)
 
 
 class ReadRequest(BaseModel):
+    container: str = Field(min_length=1)
     path: str
 
 
@@ -36,13 +38,6 @@ async def _run_docker_call(fn, *args, timeout_seconds: int | None = None):
         raise HTTPException(status_code=503, detail=f"docker unavailable: {exc}") from exc
 
 
-def _active_container() -> str:
-    active = runtime_state.get_active_container()
-    if not active:
-        raise HTTPException(status_code=400, detail="no active container set")
-    return active
-
-
 def _safe_workspace_path(path: str) -> str:
     target = posixpath.normpath(posixpath.join(settings.workspace_dir, path.lstrip("/")))
     workspace_prefix = settings.workspace_dir.rstrip("/") + "/"
@@ -54,25 +49,25 @@ def _safe_workspace_path(path: str) -> str:
 @router.post("/exec")
 async def exec_in_kali(payload: ExecRequest) -> Dict[str, str | int]:
     validate_command(payload.cmd)
-    active = _active_container()
+    container = payload.container
     command_timeout = payload.timeout or settings.command_timeout_seconds
     operation_timeout = max(settings.docker_operation_timeout_seconds, command_timeout + 5)
 
     try:
         result = await _run_docker_call(
             get_docker_service().exec,
-            active,
+            container,
             payload.cmd,
             command_timeout,
             timeout_seconds=operation_timeout,
         )
     except NotFound as exc:
-        raise HTTPException(status_code=404, detail="active container not found") from exc
+        raise HTTPException(status_code=404, detail="container not found") from exc
     except APIError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     return {
-        "container": active,
+        "container": container,
         "exit_code": result.exit_code,
         "output": result.output,
     }
@@ -80,18 +75,18 @@ async def exec_in_kali(payload: ExecRequest) -> Dict[str, str | int]:
 
 @router.post("/read")
 async def read_in_kali(payload: ReadRequest) -> Dict[str, str]:
-    active = _active_container()
+    container = payload.container
     target = _safe_workspace_path(payload.path)
 
     try:
-        content = await _run_docker_call(get_docker_service().read_file, active, target)
+        content = await _run_docker_call(get_docker_service().read_file, container, target)
     except NotFound as exc:
         raise HTTPException(status_code=404, detail="file or container not found") from exc
     except APIError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     return {
-        "container": active,
+        "container": container,
         "path": target,
         "content": content,
     }

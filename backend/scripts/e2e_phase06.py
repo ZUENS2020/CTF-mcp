@@ -74,33 +74,42 @@ def run(ctx: Context) -> None:
     container_created = False
 
     try:
-        log("1/8 health check")
+        log("1/7 health check")
         health = http_json(ctx, "GET", "/healthz")
         ensure(isinstance(health, dict) and health.get("status") == "ok", "healthz unexpected payload")
 
-        log("2/8 create container")
+        log("2/7 create container")
         http_json(ctx, "POST", "/api/containers", {"name": ctx.container_name, "image": ctx.image})
         container_created = True
 
-        log("3/8 activate container")
-        active = http_json(ctx, "PUT", f"/api/containers/{urllib.parse.quote(ctx.container_name)}/activate")
-        ensure(isinstance(active, dict) and active.get("name") == ctx.container_name, "activate response mismatch")
-
-        log("4/8 kali exec sanity")
-        exec_res = http_json(ctx, "POST", "/api/kali/exec", {"cmd": "echo phase06_ok"})
+        log("3/7 kali exec sanity")
+        exec_res = http_json(
+            ctx,
+            "POST",
+            "/api/kali/exec",
+            {"container": ctx.container_name, "cmd": "echo phase06_ok"},
+        )
         ensure("phase06_ok" in str(exec_res.get("output", "")), "kali exec output missing marker")
 
-        log("5/8 kali read")
+        log("4/7 kali read")
         sample = f"phase06_file_check_{int(time.time())}"
-        http_json(ctx, "POST", "/api/kali/exec", {"cmd": f"mkdir -p /tmp/workspace && echo {sample} > /tmp/workspace/phase06.txt"})
-        read_res = http_json(ctx, "POST", "/api/kali/read", {"path": "phase06.txt"})
+        http_json(
+            ctx,
+            "POST",
+            "/api/kali/exec",
+            {
+                "container": ctx.container_name,
+                "cmd": f"mkdir -p /tmp/workspace && echo {sample} > /tmp/workspace/phase06.txt",
+            },
+        )
+        read_res = http_json(ctx, "POST", "/api/kali/read", {"container": ctx.container_name, "path": "phase06.txt"})
         ensure(read_res.get("content", "").strip() == sample, "kali read content mismatch")
 
-        log("6/8 post callback")
+        log("5/7 post callback")
         marker = f"phase06-callback-{int(time.time())}"
         http_text(ctx, "POST", f"/callback/{ctx.callback_token}", marker)
 
-        log("7/8 list callbacks")
+        log("6/7 list callbacks")
         callbacks = http_json(ctx, "GET", "/api/callbacks")
         ensure(
             any(row.get("token") == ctx.callback_token and marker in row.get("body", "") for row in callbacks),
@@ -108,7 +117,7 @@ def run(ctx: Context) -> None:
         )
 
     finally:
-        log("8/8 teardown")
+        log("7/7 teardown")
         if container_created and not ctx.keep_container:
             try:
                 http_json(ctx, "DELETE", f"/api/containers/{urllib.parse.quote(ctx.container_name)}")

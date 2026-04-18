@@ -6,7 +6,6 @@ ARG APT_RETRIES=8
 ARG APT_TIMEOUT=30
 ARG PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
 ARG PIP_TRUSTED_HOST=pypi.tuna.tsinghua.edu.cn
-ARG BORE_DOWNLOAD_URL=
 ARG FRP_DOWNLOAD_URL=
 ARG FRP_VERSION=v0.61.1
 ARG HTTP_PROXY=
@@ -97,44 +96,6 @@ RUN set -eux; \
         fi; \
     done; \
     [ -f /opt/gef.py ] || echo "gef install skipped (network)"
-
-# ---- bore binary (for reverse shell tunnels started inside the container) ----
-RUN set -eux; \
-    export http_proxy="${HTTP_PROXY}" https_proxy="${HTTPS_PROXY}" no_proxy="${NO_PROXY}"; \
-    arch="${TARGETARCH:-$(dpkg --print-architecture)}"; \
-    case "$arch" in \
-        amd64) target_triple="x86_64-unknown-linux-musl" ;; \
-        arm64) target_triple="aarch64-unknown-linux-musl" ;; \
-        *) echo "unsupported arch=$arch"; exit 1 ;; \
-    esac; \
-    base_path="/ekzhang/bore/releases/download/v0.5.3/bore-v0.5.3-${target_triple}.tar.gz"; \
-    latest_path="/ekzhang/bore/releases/latest/download/bore-${target_triple}.tar.gz"; \
-    if [ -n "${BORE_DOWNLOAD_URL}" ]; then \
-      candidates="${BORE_DOWNLOAD_URL}"; \
-    else \
-      candidates=""; \
-      for prefix in \
-        "https://github.com" \
-        "https://ghfast.top/https://github.com" \
-        "https://gh-proxy.com/https://github.com" \
-        "https://ghproxy.net/https://github.com" \
-        "https://mirror.ghproxy.com/https://github.com" \
-        "https://ghps.cc/https://github.com"; do \
-        candidates="${candidates} ${prefix}${base_path} ${prefix}${latest_path}"; \
-      done; \
-    fi; \
-    downloaded=0; \
-    for candidate in ${candidates}; do \
-      echo ">>> trying ${candidate}"; \
-      if curl -fsSL --connect-timeout 15 --max-time 180 --retry 2 "$candidate" -o /tmp/bore.tar.gz; then \
-        downloaded=1; break; \
-      fi; \
-    done; \
-    [ "$downloaded" -eq 1 ] || { echo "failed to download bore from all candidates"; exit 1; }; \
-    tar -xzf /tmp/bore.tar.gz -C /usr/local/bin bore; \
-    chmod +x /usr/local/bin/bore; \
-    bore --help >/dev/null; \
-    rm -f /tmp/bore.tar.gz
 
 # ---- frpc binary (for FRP tunnels started inside the container) ----
 RUN set -eux; \

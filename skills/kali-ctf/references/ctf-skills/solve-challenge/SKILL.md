@@ -43,11 +43,27 @@ frpc -c /tmp/frpc-ctf.toml
 
 基础地址：`setting.md` 的 `Api_Base`
 
+并发约束：
+- 不使用 active 容器；每个请求独立指定 `container`。
+
+多容器并发命名规范（必须遵守）：
+1. 命名格式：`ai-<agent>-<cat>-<seq>`
+2. 字段含义：
+- `<agent>`：AI 实例代号（如 `a`、`b`、`c`）
+- `<cat>`：题型代号（`web` / `pwn` / `rev` / `crypto` / `forensics` / `misc`）
+- `<seq>`：三位递增编号（`001`、`002`...）
+3. 示例：
+- `ai-a-web-001`
+- `ai-b-pwn-001`
+- `ai-c-rev-002`
+4. 冲突规避：
+- 同一 AI 同一题目禁止复用旧容器名，必须递增 `seq`
+- 新建容器前先 `GET /api/containers`，若同名已存在则递增编号重试
+
 1. 创建容器：`POST /api/containers`
-2. 激活容器：`PUT /api/containers/{name}/activate`
-3. 执行命令：`POST /api/kali/exec`
-4. 读取文件：`POST /api/kali/read`
-5. 回调收件箱：`GET /api/callbacks`
+2. 执行命令：`POST /api/kali/exec`（请求体必须带 `container`）
+3. 读取文件：`POST /api/kali/read`（请求体必须带 `container`）
+4. 回调收件箱：`GET /api/callbacks`
 
 ## 首轮流程
 

@@ -11,6 +11,12 @@ description: Forensics 题专项方法。用于磁盘、内存、流量、日志
 2. 本地不直接运行取证工具链。
 3. 每个关键结论保留证据文件路径与命令记录。
 
+## 并发容器约定
+
+1. 统一使用主技能已初始化的 `CONTAINER_NAME`（如 `ai-c-forensics-001`）。
+2. 所有 `/api/kali/exec`、`/api/kali/read` 请求必须显式携带 `container=$CONTAINER_NAME`。
+3. 禁止在子技能中硬编码容器名。
+
 ## 工具准备（远端执行）
 
 ```bash

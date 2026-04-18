@@ -1,7 +1,6 @@
 FROM python:3.12-slim
 
 ARG TARGETARCH
-ARG BORE_DOWNLOAD_URL=
 ARG DEBIAN_MIRROR=http://mirrors.tuna.tsinghua.edu.cn
 ARG PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
 ARG PIP_TRUSTED_HOST=pypi.tuna.tsinghua.edu.cn
@@ -36,46 +35,6 @@ RUN set -eux; \
       ca-certificates \
       curl; \
     rm -rf /var/lib/apt/lists/*
-
-RUN set -eux; \
-    case "${TARGETARCH:-amd64}" in \
-      amd64) target_triple="x86_64-unknown-linux-musl" ;; \
-      arm64) target_triple="aarch64-unknown-linux-musl" ;; \
-      *) echo "unsupported TARGETARCH=${TARGETARCH}"; exit 1 ;; \
-    esac; \
-    bore_file="bore-v0.5.3-${target_triple}.tar.gz"; \
-    base_path="/ekzhang/bore/releases/download/v0.5.3/${bore_file}"; \
-    latest_path="/ekzhang/bore/releases/latest/download/bore-${target_triple}.tar.gz"; \
-    if [ -n "${BORE_DOWNLOAD_URL}" ]; then \
-      candidates="${BORE_DOWNLOAD_URL}"; \
-    else \
-      candidates=""; \
-      for prefix in \
-        "https://github.com" \
-        "https://ghfast.top/https://github.com" \
-        "https://gh-proxy.com/https://github.com" \
-        "https://ghproxy.net/https://github.com" \
-        "https://mirror.ghproxy.com/https://github.com" \
-        "https://ghps.cc/https://github.com"; do \
-        candidates="${candidates} ${prefix}${base_path} ${prefix}${latest_path}"; \
-      done; \
-    fi; \
-    downloaded=0; \
-    for candidate in ${candidates}; do \
-      echo ">>> trying ${candidate}"; \
-      if curl -fsSL --connect-timeout 15 --max-time 180 --retry 2 "$candidate" -o /tmp/bore.tar.gz; then \
-        downloaded=1; \
-        break; \
-      fi; \
-    done; \
-    if [ "$downloaded" -ne 1 ]; then \
-      echo "failed to download bore from all candidates"; \
-      exit 1; \
-    fi; \
-    tar -xzf /tmp/bore.tar.gz -C /usr/local/bin bore; \
-    chmod +x /usr/local/bin/bore; \
-    bore --help >/dev/null; \
-    rm -f /tmp/bore.tar.gz
 
 COPY requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt

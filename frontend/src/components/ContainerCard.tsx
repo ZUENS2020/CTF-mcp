@@ -3,17 +3,15 @@ import { StatusBadge } from "./StatusBadge";
 
 type Props = {
   item: ContainerInfo;
-  isActive: boolean;
-  onActivate: (name: string) => void;
   onDelete: (name: string) => void;
 };
 
-export function ContainerCard({ item, isActive, onActivate, onDelete }: Props) {
+export function ContainerCard({ item, onDelete }: Props) {
   return (
     <article className="card">
       <div className="card-head">
         <h3>{item.name}</h3>
-        {isActive ? <span className="badge badge-active">active</span> : <StatusBadge status={item.status} />}
+        <StatusBadge status={item.status} />
       </div>
       <div className="meta-grid">
         <span className="k">id</span>
@@ -24,9 +22,6 @@ export function ContainerCard({ item, isActive, onActivate, onDelete }: Props) {
         <span className="v">{item.image}</span>
       </div>
       <div className="row">
-        <button onClick={() => onActivate(item.name)} disabled={isActive}>
-          {isActive ? "Active" : "Set Active"}
-        </button>
         <button className="danger ghost" onClick={() => onDelete(item.name)}>
           Delete
         </button>

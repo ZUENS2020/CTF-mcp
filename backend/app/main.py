@@ -7,7 +7,6 @@ from app.api.callbacks import router as callbacks_router
 from app.api.config import router as config_router
 from app.api.containers import router as containers_router
 from app.api.kali import router as kali_router
-from app.api.tunnels import router as tunnels_router
 from app.config import settings
 from app.db.database import init_db
 
@@ -35,7 +34,6 @@ def create_app() -> FastAPI:
     app.include_router(kali_router)
     app.include_router(config_router)
     app.include_router(callbacks_router)
-    app.include_router(tunnels_router)
 
     return app
 
