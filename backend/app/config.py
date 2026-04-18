@@ -30,6 +30,10 @@ class AppSettings(BaseSettings):
     container_platform: Optional[str] = "linux/amd64"
     workspace_dir: str = "/tmp/workspace"
     command_timeout_seconds: int = 30
+    container_mem_limit: str = "32g"
+    container_nano_cpus: int = 8_000_000_000
+    container_pids_limit: int = 32768
+    container_shm_size: str = "8g"
     docker_api_timeout_seconds: int = 15
     docker_operation_timeout_seconds: int = 20
     tmpfiles_api_base: str = "https://tmpfiles.org"

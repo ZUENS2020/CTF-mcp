@@ -46,8 +46,10 @@ class DockerService:
             tty=True,
             stdin_open=True,
             network_mode="bridge",
-            mem_limit="2g",
-            nano_cpus=2_000_000_000,
+            mem_limit=settings.container_mem_limit,
+            nano_cpus=settings.container_nano_cpus,
+            pids_limit=settings.container_pids_limit,
+            shm_size=settings.container_shm_size,
         )
         if settings.container_platform:
             kwargs["platform"] = settings.container_platform

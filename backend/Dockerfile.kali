@@ -7,6 +7,8 @@ ARG APT_TIMEOUT=30
 ARG PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
 ARG PIP_TRUSTED_HOST=pypi.tuna.tsinghua.edu.cn
 ARG BORE_DOWNLOAD_URL=
+ARG FRP_DOWNLOAD_URL=
+ARG FRP_VERSION=v0.61.1
 ARG HTTP_PROXY=
 ARG HTTPS_PROXY=
 ARG NO_PROXY=
@@ -37,7 +39,15 @@ RUN set -eux; \
         fi; \
         packages='kali-linux-headless python3-pip python3-venv metasploit-framework chisel \
             build-essential gcc g++ gdb gdb-multiarch ltrace strace file binutils \
-            patchelf elfutils ruby-full'; \
+            patchelf elfutils ruby-full \
+            nmap masscan netcat-openbsd socat tcpdump tshark wireshark-common \
+            sqlmap ffuf gobuster wfuzz nikto hydra john hashcat \
+            binwalk exiftool steghide foremost sleuthkit yara radare2 \
+            unzip p7zip-full jq curl wget git openssh-client net-tools dnsutils tmux vim \
+            default-jre default-jdk maven gradle apktool jadx \
+            golang-go nodejs npm yarnpkg rustc cargo \
+            php php-cli php-dev php-xml php-curl php-mbstring php-zip composer \
+            lua5.4 luarocks perl r-base'; \
         if ! DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends $packages; then \
             echo "apt install failed, refreshing index and retrying"; \
             apt-get update -o APT::Update::Error-Mode=any; \
@@ -45,7 +55,35 @@ RUN set -eux; \
         fi; \
         rm -rf /var/lib/apt/lists/*
 
-RUN pip3 install --break-system-packages --upgrade pip pwntools ropper capstone unicorn keystone-engine
+# ---- Optional .NET SDK (best-effort) ----
+RUN set -eux; \
+    export http_proxy="${HTTP_PROXY}" https_proxy="${HTTPS_PROXY}" no_proxy="${NO_PROXY}"; \
+    if curl -fsSL --connect-timeout 15 --max-time 120 https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh; then \
+      chmod +x /tmp/dotnet-install.sh; \
+      /tmp/dotnet-install.sh --channel 8.0 --install-dir /usr/share/dotnet || true; \
+      ln -sf /usr/share/dotnet/dotnet /usr/local/bin/dotnet || true; \
+    fi; \
+    rm -f /tmp/dotnet-install.sh
+
+RUN pip3 install --break-system-packages --upgrade pip \
+    pwntools ropper capstone unicorn keystone-engine \
+    requests pycryptodome z3-solver
+
+# ---- Language/runtime quick check (non-fatal for optional tools) ----
+RUN set -eux; \
+    python3 --version; \
+    ruby --version; \
+    java -version; \
+    go version; \
+    node --version; \
+    npm --version; \
+    rustc --version; \
+    cargo --version; \
+    php --version; \
+    lua -v; \
+    perl -v >/dev/null; \
+    R --version >/dev/null; \
+    dotnet --info >/dev/null 2>&1 || true
 
 # GEF — 单文件版 GDB 插件,失败不 fatal(离线/代理环境也能继续构建)
 RUN set -eux; \
@@ -97,6 +135,45 @@ RUN set -eux; \
     chmod +x /usr/local/bin/bore; \
     bore --help >/dev/null; \
     rm -f /tmp/bore.tar.gz
+
+# ---- frpc binary (for FRP tunnels started inside the container) ----
+RUN set -eux; \
+    export http_proxy="${HTTP_PROXY}" https_proxy="${HTTPS_PROXY}" no_proxy="${NO_PROXY}"; \
+    arch="${TARGETARCH:-$(dpkg --print-architecture)}"; \
+    case "$arch" in \
+        amd64) frp_arch="amd64" ;; \
+        arm64) frp_arch="arm64" ;; \
+        *) echo "unsupported arch=$arch"; exit 1 ;; \
+    esac; \
+    frp_pkg="frp_${FRP_VERSION#v}_linux_${frp_arch}.tar.gz"; \
+    base_path="/fatedier/frp/releases/download/${FRP_VERSION}/${frp_pkg}"; \
+    if [ -n "${FRP_DOWNLOAD_URL}" ]; then \
+      candidates="${FRP_DOWNLOAD_URL}"; \
+    else \
+      candidates=""; \
+      for prefix in \
+        "https://github.com" \
+        "https://ghfast.top/https://github.com" \
+        "https://gh-proxy.com/https://github.com" \
+        "https://ghproxy.net/https://github.com" \
+        "https://mirror.ghproxy.com/https://github.com" \
+        "https://ghps.cc/https://github.com"; do \
+        candidates="${candidates} ${prefix}${base_path}"; \
+      done; \
+    fi; \
+    downloaded=0; \
+    for candidate in ${candidates}; do \
+      echo ">>> trying ${candidate}"; \
+      if curl -fsSL --connect-timeout 15 --max-time 180 --retry 2 "$candidate" -o /tmp/frp.tar.gz; then \
+        downloaded=1; break; \
+      fi; \
+    done; \
+    [ "$downloaded" -eq 1 ] || { echo "failed to download frpc from all candidates"; exit 1; }; \
+    tar -xzf /tmp/frp.tar.gz -C /tmp; \
+    cp /tmp/frp_${FRP_VERSION#v}_linux_${frp_arch}/frpc /usr/local/bin/frpc; \
+    chmod +x /usr/local/bin/frpc; \
+    frpc -v >/dev/null; \
+    rm -rf /tmp/frp.tar.gz /tmp/frp_${FRP_VERSION#v}_linux_${frp_arch}
 
 RUN mkdir -p /tmp/workspace
 WORKDIR /tmp/workspace
