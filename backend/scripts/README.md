@@ -3,14 +3,14 @@
 ## 前置
 
 ```bash
-cd /Users/zuens2020/Documents/CTF-mcp
+cd /path/to/CTF-mcp
 docker compose up -d --build
 ```
 
 ## 运行
 
 ```bash
-cd /Users/zuens2020/Documents/CTF-mcp
+cd /path/to/CTF-mcp
 python3 backend/scripts/e2e_phase06.py
 ```
 
