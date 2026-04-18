@@ -1,0 +1,41 @@
+---
+name: ctf-misc
+description: Misc 题专项方法。用于 jail、编码、脚本陷阱、协议小游戏、杂项自动化等任务，并要求在 CTF-mcp 项目中仅通过远端 Kali API 执行求解流程。
+---
+
+# Misc 解题（项目版）
+
+## 执行约束
+
+1. 所有脚本与交互在远端 Kali 执行。
+2. 本地仅负责上传附件与 frpc 穿透。
+3. 优先最短可复现链路，避免过度复杂化。
+
+## 工具准备（远端执行）
+
+```bash
+apt-get update && apt-get install -y jq socat netcat-openbsd
+python3 -m pip install --upgrade pwntools
+```
+
+## 标准流程
+
+1. 问题建模：识别是编码、约束、交互协议还是 jail。
+2. 快速验证：最小输入输出回放，确认可控点。
+3. 自动化：把手工步骤脚本化并支持重试。
+4. 收敛：输出唯一有效结果与复现步骤。
+
+## 常见分支
+
+1. 编码链：分层识别并逐层解码。
+2. Jail：限制分析 -> 可用原语 -> 逃逸 payload。
+3. 交互题：状态机建模 -> 会话脚本。
+4. 杂项协议：抓包/重放/边界测试。
+
+## 内置参考
+
+1. `encodings.md`
+2. `pyjails.md`
+3. `bashjails.md`
+4. `ctfd-navigation.md`
+5. `games-and-vms.md`

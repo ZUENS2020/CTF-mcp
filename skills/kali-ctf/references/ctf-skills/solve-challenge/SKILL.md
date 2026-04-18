@@ -1,0 +1,118 @@
+---
+name: solve-challenge
+description: 统一 CTF 调度入口。用于题型未明确时的首轮研判与分流，在 CTF-mcp 项目中将题目附件/URL 从本地输入转为远端 Kali 可执行任务，并把执行路由到 ctf-web、ctf-pwn、ctf-reverse、ctf-crypto、ctf-forensics、ctf-misc。
+---
+
+# 题目总调度（项目版）
+
+## 项目执行模型
+
+1. 本地仅做输入、上传与隧道控制，不做解题执行。
+2. 所有分析与利用都通过 `setting.md` 的 `Api_Base` 在远端 Kali 完成。
+3. 题型明确后再进入对应分类技能。
+
+## 配置来源
+
+统一读取：
+- `./setting.md`（当前工作区）
+
+字段：
+1. `Api_Base`
+2. `FRP_Address`
+3. `FRP_token`
+
+## 本地动作（仅控制面）
+
+### 文件上传
+
+```bash
+curl -F "file=@/ABS/PATH/TO/FILE" https://tmpfiles.org/api/v1/upload
+```
+
+把页面链接转换为下载直链：
+- `https://tmpfiles.org/<id>/<name>`
+- `https://tmpfiles.org/dl/<id>/<name>`
+
+### 隧道穿透（按需）
+
+```bash
+frpc -c /tmp/frpc-ctf.toml
+```
+
+## 远端 API 基线
+
+基础地址：`setting.md` 的 `Api_Base`
+
+1. 创建容器：`POST /api/containers`
+2. 激活容器：`PUT /api/containers/{name}/activate`
+3. 执行命令：`POST /api/kali/exec`
+4. 读取文件：`POST /api/kali/read`
+5. 回调收件箱：`GET /api/callbacks`
+
+## 首轮流程
+
+1. 收集输入：附件路径、题目 URL、端口、题目描述。
+2. 上传附件：本地上传到 tmpfiles，得到 `/dl/` 直链。
+3. 远端落地：通过 `/api/kali/exec` 在 `/tmp/workspace/current` 下载附件。
+4. 首轮侦察：仅在远端执行 `file/strings/checksec/binwalk/nc/curl` 等。
+5. 题型判定：Web/Pwn/Reverse/Crypto/Forensics/Misc。
+6. 路由执行：进入对应分类技能。
+7. 输出证据：通过 `/api/kali/read` 与 `/api/callbacks` 收集结果与 flag。
+
+## 尝试记录规范
+
+调度层必须维护“已尝试路径”清单，至少记录：
+
+1. 路径名（例如 `Web-SSTI`、`Pwn-格式化字符串`）。
+2. 关键命令或 payload。
+3. 观察到的结果。
+4. 是否产生新信息。
+5. 是否继续该路径。
+
+建议在远端维护 `/tmp/workspace/current/attempts.log`，防止重复试错。
+
+## 转向策略
+
+出现以下情况必须转向到下一条候选路径：
+
+1. 同一路径 3 次尝试无新信息。
+2. 关键前提被否定（例如注入点不可控、端口不可达）。
+3. 题型信号改变（如原判 Web，后续更像 Pwn）。
+
+转向时先写明“放弃原因 + 新路径验证命令”，再执行下一路径。
+
+## 题型判定规则
+
+1. 文件特征
+- `pcap/evtx/raw/dd/E01` 倾向 Forensics
+- `elf/exe/so/dll` 倾向 Reverse 或 Pwn
+- `py/sage/大整数文本` 倾向 Crypto
+- Web 代码或 HTTP 服务倾向 Web
+
+2. 描述关键词
+- `overflow/ROP/libc/heap` -> Pwn
+- `RSA/AES/nonce/lattice/LWE` -> Crypto
+- `XSS/SQLi/SSTI/SSRF/JWT` -> Web
+- `memory dump/packet capture/stego` -> Forensics
+- `jail/encoding/sandbox/game` -> Misc
+
+3. 服务行为
+- 交互式端口 + 异常崩溃 -> Pwn
+- HTTP/HTTPS -> Web
+- 数学或密码问答 -> Crypto
+
+## 路由目标
+
+1. Web：`../ctf-web/SKILL.md`
+2. Pwn：`../ctf-pwn/SKILL.md`
+3. Reverse：`../ctf-reverse/SKILL.md`
+4. Crypto：`../ctf-crypto/SKILL.md`
+5. Forensics：`../ctf-forensics/SKILL.md`
+6. Misc：`../ctf-misc/SKILL.md`
+
+## 关键约束
+
+1. 不在本地运行解题工具链。
+2. 不搜索该题公开题解。
+3. 不跨题复用未经验证的 exploit。
+4. 不允许在单一路径上无记录地反复尝试。
