@@ -17,6 +17,12 @@ description: Misc 题专项方法。用于 jail、编码、脚本陷阱、协议
 2. 所有 `/api/kali/exec`、`/api/kali/read` 请求必须显式携带 `container=$CONTAINER_NAME`。
 3. 禁止在子技能中硬编码容器名。
 
+## 本机禁令（强制）
+
+1. 本机仅允许执行 `tmpfiles` 上传与 `frpc` 穿透，不允许任何 Misc 解题命令。
+2. 本机禁止执行本地 jail 逃逸脚本、交互脚本、协议自动化脚本。
+3. 所有验证与求解动作必须通过远端 `/api/kali/exec` 执行。
+
 ## 工具准备（远端执行）
 
 ```bash

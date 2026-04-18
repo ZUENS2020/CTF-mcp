@@ -39,6 +39,13 @@ curl -F "file=@/ABS/PATH/TO/FILE" https://tmpfiles.org/api/v1/upload
 frpc -c /tmp/frpc-ctf.toml
 ```
 
+## 本机禁令（强制）
+
+1. 本机仅允许执行：`tmpfiles` 上传 + `frpc` 穿透。
+2. 严禁在本机执行任何解题命令（扫描、调试、利用、逆向、取证脚本）。
+3. 首轮研判阶段的 `file/strings/checksec/curl/nc` 等侦察动作也必须放到远端容器执行。
+4. 若误在本机执行了解题命令，必须立即停止并记录违规条目，然后改为远端 API 执行。
+
 ## 远端 API 基线
 
 基础地址：`setting.md` 的 `Api_Base`

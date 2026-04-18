@@ -17,6 +17,12 @@ description: Pwn 题专项方法。用于栈溢出、格式化字符串、堆利
 2. 所有 `/api/kali/exec`、`/api/kali/read` 请求必须显式携带 `container=$CONTAINER_NAME`。
 3. 禁止在子技能中硬编码容器名。
 
+## 本机禁令（强制）
+
+1. 本机仅允许执行 `tmpfiles` 上传与 `frpc` 穿透，不允许任何 Pwn 解题命令。
+2. 本机禁止执行 `gdb`、`checksec`、`pwntools`、`ropper`、本地 exp。
+3. 所有分析、调试、利用动作必须通过远端 `/api/kali/exec` 执行。
+
 ## 工具准备（远端执行）
 
 ```bash
