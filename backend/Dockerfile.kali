@@ -67,7 +67,7 @@ RUN set -eux; \
 
 RUN pip3 install --break-system-packages --upgrade pip \
     pwntools ropper capstone unicorn keystone-engine \
-    requests pycryptodome z3-solver
+    pycryptodome z3-solver
 
 # ---- Language/runtime quick check (non-fatal for optional tools) ----
 RUN set -eux; \
