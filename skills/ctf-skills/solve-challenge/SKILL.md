@@ -105,13 +105,17 @@ frpc -c /tmp/frpc-ctf.toml
 SETTINGS_FILE="setting.md"
 [ -f "$SETTINGS_FILE" ] || { echo "missing setting.md"; exit 1; }
 
-API_BASE="$(awk -F': *' '/^Api_Base:/{print $2}' "$SETTINGS_FILE")"
-FILE_BASE="$(awk -F': *' '/^File_Base:/{print $2}' "$SETTINGS_FILE")"
+API_BASE="$(awk -F': *' '/^Api_Base:/{print $2}' "$SETTINGS_FILE" | tr -d '\r' | sed 's/^ *//;s/ *$//' | sed 's/^\"//;s/\"$//')"
+FILE_BASE="$(awk -F': *' '/^File_Base:/{print $2}' "$SETTINGS_FILE" | tr -d '\r' | sed 's/^ *//;s/ *$//' | sed 's/^\"//;s/\"$//')"
 [ -n "$API_BASE" ] || { echo "missing Api_Base"; exit 1; }
 [ -n "$FILE_BASE" ] || { echo "missing File_Base"; exit 1; }
 
-curl -fsS "${API_BASE%/}/healthz" >/dev/null || { echo "api healthz failed"; exit 1; }
-curl -fsS "${FILE_BASE%/}/../healthz_files" >/dev/null || { echo "file server health failed"; exit 1; }
+echo "$API_BASE" | grep -Eq '^https?://[^ ]+$' || { echo "Api_Base invalid: $API_BASE"; exit 1; }
+echo "$FILE_BASE" | grep -Eq '^https?://[^ ]+$' || { echo "File_Base invalid: $FILE_BASE"; exit 1; }
+
+FILE_SERVER_BASE="$(echo "$FILE_BASE" | sed -E 's#/files/?$##')"
+curl -fsS "${API_BASE%/}/healthz" >/dev/null || { echo "api healthz failed: ${API_BASE%/}/healthz"; exit 1; }
+curl -fsS "${FILE_SERVER_BASE%/}/healthz_files" >/dev/null || { echo "file server health failed: ${FILE_SERVER_BASE%/}/healthz_files"; exit 1; }
 echo "preflight ok"
 ```
 

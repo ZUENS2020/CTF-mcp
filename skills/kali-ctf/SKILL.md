@@ -168,7 +168,7 @@ WORKDIR="/tmp/workspace/current"
 SETTINGS_FILE="setting.md"
 [ -f "$SETTINGS_FILE" ] || { echo "missing setting.md"; exit 1; }
 for k in Api_Base FRP_Address FRP_token File_Base; do
-  v="$(awk -F': *' -v key="$k" '$1==key {print $2}' "$SETTINGS_FILE")"
+  v="$(awk -F': *' -v key="$k" '$1==key {print $2}' "$SETTINGS_FILE" | tr -d '\r' | sed 's/^ *//;s/ *$//' | sed 's/^\"//;s/\"$//')"
   [ -n "$v" ] || { echo "missing $k in setting.md"; exit 1; }
 done
 echo "settings ok"
@@ -177,10 +177,15 @@ echo "settings ok"
 ### B. 连通性自检（本地控制面）
 
 ```bash
-API_BASE="$(awk -F': *' '/^Api_Base:/{print $2}' setting.md)"
-FILE_BASE="$(awk -F': *' '/^File_Base:/{print $2}' setting.md)"
-curl -fsS "${API_BASE%/}/healthz" >/dev/null || { echo "api healthz failed"; exit 1; }
-curl -fsS "${FILE_BASE%/}/../healthz_files" >/dev/null || { echo "file server health failed"; exit 1; }
+API_BASE="$(awk -F': *' '/^Api_Base:/{print $2}' setting.md | tr -d '\r' | sed 's/^ *//;s/ *$//' | sed 's/^\"//;s/\"$//')"
+FILE_BASE="$(awk -F': *' '/^File_Base:/{print $2}' setting.md | tr -d '\r' | sed 's/^ *//;s/ *$//' | sed 's/^\"//;s/\"$//')"
+
+echo "$API_BASE" | grep -Eq '^https?://[^ ]+$' || { echo "Api_Base invalid: $API_BASE"; exit 1; }
+echo "$FILE_BASE" | grep -Eq '^https?://[^ ]+$' || { echo "File_Base invalid: $FILE_BASE"; exit 1; }
+
+FILE_SERVER_BASE="$(echo "$FILE_BASE" | sed -E 's#/files/?$##')"
+curl -fsS "${API_BASE%/}/healthz" >/dev/null || { echo "api healthz failed: ${API_BASE%/}/healthz"; exit 1; }
+curl -fsS "${FILE_SERVER_BASE%/}/healthz_files" >/dev/null || { echo "file server health failed: ${FILE_SERVER_BASE%/}/healthz_files"; exit 1; }
 echo "control-plane ok"
 ```
 
