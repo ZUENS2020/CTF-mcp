@@ -33,7 +33,8 @@ FRP_ADDRESS="$(awk -F': *' '/^FRP_Address:/{print $2}' "$SETTINGS_FILE")"
 FILE_BASE="$(awk -F': *' '/^File_Base:/{print $2}' "$SETTINGS_FILE")"
 [ -n "$FILE_BASE" ] || FILE_BASE="http://${FRP_ADDRESS}/files"
 LOCAL_FILE="/ABS/PATH/TO/FILE"
-FILE_NAME="$(basename "$LOCAL_FILE")"
+BASE_NAME="$(basename "$LOCAL_FILE")"
+FILE_NAME="$(date +%s)-$RANDOM-${BASE_NAME}"
 
 scp "$LOCAL_FILE" "root@${FRP_ADDRESS}:/srv/ctf-files/${FILE_NAME}"
 echo "${FILE_BASE%/}/${FILE_NAME}"
@@ -41,6 +42,14 @@ echo "${FILE_BASE%/}/${FILE_NAME}"
 
 下载直链格式：
 - `<File_Base>/<文件名>`
+
+清理要求（强制）：
+1. 远端下载并校验成功后，立即删除 `/srv/ctf-files/${FILE_NAME}`。
+2. 删除命令（本地控制面允许）：
+
+```bash
+ssh "root@${FRP_ADDRESS}" "rm -f /srv/ctf-files/${FILE_NAME}"
+```
 
 ### 隧道穿透（按需）
 
@@ -111,11 +120,12 @@ echo "preflight ok"
 1. 收集输入：附件路径、题目 URL、端口、题目描述。
 2. 执行“强制自检环节”并确认通过。
 3. 上传附件：本地上传到 nginx 文件服务器，得到 `File_Base/文件名` 直链。
-4. 远端落地：通过 `/api/kali/exec` 在 `/tmp/workspace/current` 下载附件。
-5. 首轮侦察：仅在远端执行 `file/strings/checksec/binwalk/nc/curl` 等。
-6. 题型判定：Web/Pwn/Reverse/Crypto/Forensics/Misc。
-7. 路由执行：进入对应分类技能。
-8. 输出证据：通过 `/api/kali/read` 与 `/api/callbacks` 收集结果与 flag。
+4. 远端落地：通过 `/api/kali/exec` 在 `/tmp/workspace/current` 下载附件并校验。
+5. 源文件清理：下载校验成功后，立即删除文件服务器源文件。
+6. 首轮侦察：仅在远端执行 `file/strings/checksec/binwalk/nc/curl` 等。
+7. 题型判定：Web/Pwn/Reverse/Crypto/Forensics/Misc。
+8. 路由执行：进入对应分类技能。
+9. 输出证据：通过 `/api/kali/read` 与 `/api/callbacks` 收集结果与 flag。
 
 ## 尝试记录规范
 
