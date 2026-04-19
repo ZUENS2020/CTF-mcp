@@ -9,11 +9,10 @@ frontend/dist/
 # Local runtime data
 backend/data/
 backend/data/app.db
+setting.md
 
 # Virtualenv
 .venv/
 backend/.venv/
 build.log
 status.txt
-setting.md
-setting.md
