@@ -15,3 +15,5 @@ backend/data/app.db
 backend/.venv/
 build.log
 status.txt
+setting.md
+setting.md

@@ -1,4 +1,4 @@
 interface:
   display_name: "Kali CTF"
   short_description: "远端 Kali 执行规范与 CTF 分类解法统一工作流技能"
-  default_prompt: "按 CTF-mcp 项目规范执行：先读取当前工作区 setting.md（Api_Base、FRP_Address、FRP_token），本地只做 tmpfiles 上传与 frpc 穿透，所有分析、利用、取 flag 全程通过远端 Kali API 完成，并按题型调用 ctf-skills 方法。"
+  default_prompt: "按 CTF-mcp 项目规范执行：先读取当前工作区 setting.md（Api_Base、FRP_Address、FRP_token、File_Base），本地只做 nginx 文件服务器上传与 frpc 穿透，所有分析、利用、取 flag 全程通过远端 Kali API 完成，并按题型调用 ctf-skills 方法。"

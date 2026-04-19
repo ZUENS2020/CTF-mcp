@@ -19,7 +19,7 @@ description: Pwn 题专项方法。用于栈溢出、格式化字符串、堆利
 
 ## 本机禁令（强制）
 
-1. 本机仅允许执行 `tmpfiles` 上传与 `frpc` 穿透，不允许任何 Pwn 解题命令。
+1. 本机仅允许执行 `nginx 文件服务器上传` 与 `frpc` 穿透，不允许任何 Pwn 解题命令。
 2. 本机禁止执行 `gdb`、`checksec`、`pwntools`、`ropper`、本地 exp。
 3. 所有分析、调试、利用动作必须通过远端 `/api/kali/exec` 执行。
 
