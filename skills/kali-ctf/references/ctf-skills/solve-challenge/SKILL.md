@@ -88,15 +88,34 @@ frpc -c /tmp/frpc-ctf.toml
 3. 读取文件：`POST /api/kali/read`（请求体必须带 `container`）
 4. 回调收件箱：`GET /api/callbacks`
 
+## 强制自检环节（调度前必须通过）
+
+任一检查失败时，停止调度，不得继续题型判定与利用。
+
+```bash
+SETTINGS_FILE="setting.md"
+[ -f "$SETTINGS_FILE" ] || { echo "missing setting.md"; exit 1; }
+
+API_BASE="$(awk -F': *' '/^Api_Base:/{print $2}' "$SETTINGS_FILE")"
+FILE_BASE="$(awk -F': *' '/^File_Base:/{print $2}' "$SETTINGS_FILE")"
+[ -n "$API_BASE" ] || { echo "missing Api_Base"; exit 1; }
+[ -n "$FILE_BASE" ] || { echo "missing File_Base"; exit 1; }
+
+curl -fsS "${API_BASE%/}/healthz" >/dev/null || { echo "api healthz failed"; exit 1; }
+curl -fsS "${FILE_BASE%/}/../healthz_files" >/dev/null || { echo "file server health failed"; exit 1; }
+echo "preflight ok"
+```
+
 ## 首轮流程
 
 1. 收集输入：附件路径、题目 URL、端口、题目描述。
-2. 上传附件：本地上传到 nginx 文件服务器，得到 `File_Base/文件名` 直链。
-3. 远端落地：通过 `/api/kali/exec` 在 `/tmp/workspace/current` 下载附件。
-4. 首轮侦察：仅在远端执行 `file/strings/checksec/binwalk/nc/curl` 等。
-5. 题型判定：Web/Pwn/Reverse/Crypto/Forensics/Misc。
-6. 路由执行：进入对应分类技能。
-7. 输出证据：通过 `/api/kali/read` 与 `/api/callbacks` 收集结果与 flag。
+2. 执行“强制自检环节”并确认通过。
+3. 上传附件：本地上传到 nginx 文件服务器，得到 `File_Base/文件名` 直链。
+4. 远端落地：通过 `/api/kali/exec` 在 `/tmp/workspace/current` 下载附件。
+5. 首轮侦察：仅在远端执行 `file/strings/checksec/binwalk/nc/curl` 等。
+6. 题型判定：Web/Pwn/Reverse/Crypto/Forensics/Misc。
+7. 路由执行：进入对应分类技能。
+8. 输出证据：通过 `/api/kali/read` 与 `/api/callbacks` 收集结果与 flag。
 
 ## 尝试记录规范
 

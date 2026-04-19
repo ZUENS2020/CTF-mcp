@@ -147,15 +147,61 @@ WORKDIR="/tmp/workspace/current"
 2. “所有侦察、分析、利用、取证、读 flag 统一走远端 Kali API。”
 3. “若命令无法在远端执行，先修远端环境，不回退到本机解题。”
 
+## 强制自检环节（开题前必须通过）
+
+未通过任一项时，禁止进入“统一执行流程”。
+
+### A. 配置自检（本地）
+
+```bash
+SETTINGS_FILE="setting.md"
+[ -f "$SETTINGS_FILE" ] || { echo "missing setting.md"; exit 1; }
+for k in Api_Base FRP_Address FRP_token File_Base; do
+  v="$(awk -F': *' -v key="$k" '$1==key {print $2}' "$SETTINGS_FILE")"
+  [ -n "$v" ] || { echo "missing $k in setting.md"; exit 1; }
+done
+echo "settings ok"
+```
+
+### B. 连通性自检（本地控制面）
+
+```bash
+API_BASE="$(awk -F': *' '/^Api_Base:/{print $2}' setting.md)"
+FILE_BASE="$(awk -F': *' '/^File_Base:/{print $2}' setting.md)"
+curl -fsS "${API_BASE%/}/healthz" >/dev/null || { echo "api healthz failed"; exit 1; }
+curl -fsS "${FILE_BASE%/}/../healthz_files" >/dev/null || { echo "file server health failed"; exit 1; }
+echo "control-plane ok"
+```
+
+### C. 远端执行链路自检（Kali API）
+
+```bash
+API_BASE="$(awk -F': *' '/^Api_Base:/{print $2}' setting.md)"
+CONTAINER_NAME="ai-a-web-001"
+curl -sS -X POST "${API_BASE%/}/api/containers" \
+  -H 'Content-Type: application/json' \
+  -d "{\"name\":\"$CONTAINER_NAME\",\"image\":\"ctf-kali:latest\"}" >/dev/null
+
+curl -sS -X POST "${API_BASE%/}/api/kali/exec" \
+  -H 'Content-Type: application/json' \
+  -d "{\"container\":\"$CONTAINER_NAME\",\"cmd\":\"id && pwd\",\"timeout\":30}"
+```
+
+通过标准：
+1. `healthz` 正常；
+2. 文件服务健康检查正常；
+3. 远端 `id && pwd` 返回非错误结果。
+
 ## 统一执行流程
 
 1. `本地输入`：读取题目附件路径、题目 URL、端口信息。
-2. `本地传输`：上传附件到 nginx 文件服务器并得到 `File_Base/文件名` 直链。
-3. `远端落地`：通过 `/api/kali/exec` 在 Kali 下载到 `/tmp/workspace/current`。
-4. `题型判定`：判断为 Web/Pwn/Reverse/Crypto/Forensics/Misc。
-5. `远端解题`：仅通过 `/api/kali/exec` 执行完整分析与利用。
-6. `按需穿透`：需要反连或端口映射时，在本地使用 frpc。
-7. `结果回收`：通过 `/api/kali/read` 和 `/api/callbacks` 读取证据与 flag。
+2. `强制自检`：执行并通过“强制自检环节”。
+3. `本地传输`：上传附件到 nginx 文件服务器并得到 `File_Base/文件名` 直链。
+4. `远端落地`：通过 `/api/kali/exec` 在 Kali 下载到 `/tmp/workspace/current`。
+5. `题型判定`：判断为 Web/Pwn/Reverse/Crypto/Forensics/Misc。
+6. `远端解题`：仅通过 `/api/kali/exec` 执行完整分析与利用。
+7. `按需穿透`：需要反连或端口映射时，在本地使用 frpc。
+8. `结果回收`：通过 `/api/kali/read` 和 `/api/callbacks` 读取证据与 flag。
 
 ## 前置连通性检查（建议）
 
